@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDI vs IPCA+ vs Pré — Série Histórica (desde 2000)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="stripe-top-accent" aria-hidden="true"></div>
+  <div class="container">
+    <header class="header">
+      <div class="header-text">
+        <div class="header-badges">
+          <span class="badge">Banco Central • SGS 4391 &amp; 433</span>
+          <span class="sync-status" id="syncStatus">
+            <span class="sync-dot"></span>
+            <span id="syncText">Carregando dados...</span>
+          </span>
+          <button type="button" id="refreshBtn" class="mini-btn" title="Buscar novos meses no Banco Central">Atualizar</button>
+        </div>
+        <h1>Renda Fixa Brasileira</h1>
+        <p class="subtitle" id="headerSubtitle">
+          Série histórica mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (Jan/2000 – Out/2026)
+        </p>
+      </div>
+      <button id="themeToggle" class="theme-btn" type="button" aria-label="Alternar tema">
+        <span id="themeIcon" class="theme-dot"></span>
+        <span id="themeLabel">Modo Escuro</span>
+      </button>
+    </header>
+
+    <nav class="main-tabs" role="tablist">
+      <button type="button" class="tab-btn active" data-tab="history" role="tab" aria-selected="true">
+        Série Histórica (desde 2000)
+      </button>
+      <button type="button" class="tab-btn" data-tab="comparator" role="tab" aria-selected="false">
+        Comparador &amp; Equivalência de Taxas
+      </button>
+    </nav>
+
+    <main id="tab-history" class="tab-panel active">
+    <section class="controls-card">
+      <div class="control-group">
+        <label class="control-label">Visualização</label>
+        <div class="segmented" id="metricSelector">
+          <button type="button" class="seg-btn active" data-metric="pct">Acumulado (%)</button>
+          <button type="button" class="seg-btn" data-metric="brl">Patrimônio (R$)</button>
+          <button type="button" class="seg-btn" data-metric="real">Ganho Real (acima IPCA)</button>
+          <button type="button" class="seg-btn" data-metric="rolling12">Móvel 12M (% a.a.)</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" for="initialAmount">Valor Inicial (R$)</label>
+        <label class="amount-field">
+          <span>R$</span>
+          <input type="number" id="initialAmount" step="100" min="1" value="1000" />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Período</label>
+        <div class="period-row">
+          <div class="segmented" id="periodSelector">
+            <button type="button" class="seg-btn active" data-months="9999">Máx (2000+)</button>
+            <button type="button" class="seg-btn" data-months="240">20A</button>
+            <button type="button" class="seg-btn" data-months="180">15A</button>
+            <button type="button" class="seg-btn" data-months="120">10A</button>
+            <button type="button" class="seg-btn" data-months="60">5A</button>
+            <button type="button" class="seg-btn" data-months="36">3A</button>
+            <button type="button" class="seg-btn" data-months="12">1A</button>
+          </div>
+          <div class="date-range">
+            <select id="startMonth" aria-label="Mês inicial"></select>
+            <span>até</span>
+            <select id="endMonth" aria-label="Mês final"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group rates-group">
+        <div class="rates-header">
+          <label class="control-label">Taxas Personalizáveis (% a.a.)</label>
+          <button type="button" id="resetRatesBtn" class="mini-btn">Restaurar padrão</button>
+        </div>
+        <div class="rates-inputs">
+          <label class="rate-field" style="--rate-color: #10b981">
+            <span>IPCA +</span>
+            <input type="number" id="rateIpca1" step="0.1" min="-50" max="200" value="6" />
+            <span class="unit">%</span>
+          </label>
+          <label class="rate-field" style="--rate-color: #8b5cf6">
+            <span>IPCA +</span>
+            <input type="number" id="rateIpca2" step="0.1" min="-50" max="200" value="7" />
+            <span class="unit">%</span>
+          </label>
+          <label class="rate-field" style="--rate-color: #ec4899">
+            <span>IPCA +</span>
+            <input type="number" id="rateIpca3" step="0.1" min="-50" max="200" value="7.4" />
+            <span class="unit">%</span>
+          </label>
+          <label class="rate-field" style="--rate-color: #f59e0b">
+            <span>Pré</span>
+            <input type="number" id="ratePre" step="0.1" min="-50" max="200" value="15" />
+            <span class="unit">%</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="control-group series-group">
+        <label class="control-label">Séries no Gráfico</label>
+        <div class="series-pills" id="seriesPills"></div>
+      </div>
+    </section>
+
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <section class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h2 id="chartTitle">Rentabilidade Acumulada (%)</h2>
+          <p id="chartSubtitle" class="chart-sub"></p>
+        </div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </section>
+
+    <section class="table-card">
+      <div class="table-header">
+        <div>
+          <h2>Retorno Ano a Ano (%)</h2>
+          <p class="chart-sub">Rentabilidade anual composta em cada ano-calendário (2000 a 2025 completos; 2026* até Out)</p>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="annualTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        <strong>Metodologia:</strong> Dados mensais oficiais do Banco Central do Brasil —
+        <strong>CDI</strong> (série SGS 4391, acumulada no mês) e <strong>IPCA</strong> (série SGS 433, variação mensal).
+        As séries indexadas à inflação utilizam capitalização composta mensal:
+        <code>(1 + IPCA_mês) × (1 + taxa_real)^(1/12) - 1</code>.
+        O prefixado 15% a.a. utiliza <code>(1 + 0,15)^(1/12) - 1</code> ao mês.
+        Valores brutos, sem incidência de Imposto de Renda ou taxas de custódia.
+      </p>
+    </footer>
+    </main>
+
+    <main id="tab-comparator" class="tab-panel">
+      <section class="controls-card">
+        <div class="control-group">
+          <label class="control-label" for="compCdi">CDI Projetado (% a.a.)</label>
+          <label class="rate-field" style="--rate-color: #38bdf8">
+            <span>CDI</span>
+            <input type="number" id="compCdi" step="0.25" min="0" max="100" value="14.25" />
+            <span class="unit">%</span>
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="compIpca">IPCA Projetado (% a.a.)</label>
+          <label class="rate-field" style="--rate-color: #94a3b8">
+            <span>IPCA</span>
+            <input type="number" id="compIpca" step="0.1" min="-10" max="100" value="4.5" />
+            <span class="unit">%</span>
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="compMonths">Prazo (meses)</label>
+          <div class="period-row">
+            <label class="rate-field" style="--rate-color: #10b981">
+              <input type="number" id="compMonths" step="1" min="1" max="360" value="24" />
+              <span class="unit">m</span>
+            </label>
+            <div class="segmented" id="compTermPresets">
+              <button type="button" class="seg-btn" data-m="6">6m (22,5%)</button>
+              <button type="button" class="seg-btn" data-m="12">12m (20%)</button>
+              <button type="button" class="seg-btn active" data-m="24">24m (17,5%)</button>
+              <button type="button" class="seg-btn" data-m="36">36m+ (15%)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="compAmount">Valor a Investir (R$)</label>
+          <label class="amount-field">
+            <span>R$</span>
+            <input type="number" id="compAmount" step="100" min="1" value="10000" />
+          </label>
+        </div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-header">
+          <div>
+            <h2>Equivalência Rápida de Taxas</h2>
+            <p class="chart-sub" id="eqSubtitle">Informe uma taxa para ver quanto ela equivale nos demais indexadores (líquido de IR no prazo)</p>
+          </div>
+        </div>
+        <div class="eq-input-row">
+          <label class="eq-field">
+            <span>Tipo</span>
+            <select id="eqType">
+              <option value="cdi_pct">% do CDI</option>
+              <option value="pre">Pré (% a.a.)</option>
+              <option value="ipca_plus">IPCA + (% a.a.)</option>
+            </select>
+          </label>
+          <label class="eq-field">
+            <span>Taxa</span>
+            <input type="number" id="eqRate" step="0.1" value="100" />
+          </label>
+          <label class="eq-field">
+            <span>Tributação</span>
+            <select id="eqTax">
+              <option value="ir">Com IR (CDB / Tesouro / LC)</option>
+              <option value="exempt">Isento de IR (LCI / LCA / CRI / CRA)</option>
+            </select>
+          </label>
+        </div>
+        <div class="eq-grid" id="eqGrid"></div>
+      </section>
+
+      <section class="table-card">
+        <div class="table-header">
+          <div>
+            <h2>Comparador Lado a Lado (Qual rende mais líquido?)</h2>
+            <p class="chart-sub">Edite as opções abaixo para comparar CDB, LCI/LCA, Tesouro IPCA+ e Prefixado no mesmo prazo</p>
+          </div>
+          <button type="button" id="addOfferBtn" class="mini-btn">+ Adicionar opção</button>
+        </div>
+        <div class="offers-list" id="offersList"></div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-header">
+          <div>
+            <h2>Ranking Líquido no Vencimento</h2>
+            <p class="chart-sub" id="compChartSub"></p>
+          </div>
+        </div>
+        <div class="comp-chart-wrapper">
+          <canvas id="compChart"></canvas>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div class="table-header">
+          <div>
+            <h2>Tabela Detalhada do Comparador</h2>
+            <p class="chart-sub">Ordenado do maior para o menor valor líquido final</p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table id="compTable">
+            <thead>
+              <tr>
+                <th>Investimento</th>
+                <th>Taxa Bruta</th>
+                <th>IR</th>
+                <th>Líq. (% a.a.)</th>
+                <th>Líq. (Período)</th>
+                <th>Ganho Real (a.a.)</th>
+                <th>Equiv. % CDI (c/ IR)</th>
+                <th>Valor Líquido</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>
+          <strong>Tabela regressiva de IR usada:</strong> até 6 meses (22,5%), de 7 a 12 meses (20%), de 13 a 24 meses (17,5%) e acima de 24 meses (15%).
+          O IR incide sobre o rendimento bruto acumulado no vencimento. Valores isentos (LCI/LCA/CRI/CRA/Debêntures Incentivadas) têm alíquota 0%.
+        </p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="comparator.js"></script>
+</body>
+</html>
