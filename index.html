@@ -15,18 +15,7 @@
   <div class="container">
     <header class="header">
       <div class="header-text">
-        <div class="header-badges">
-          <span class="badge">Banco Central • SGS 4391 &amp; 433</span>
-          <span class="sync-status" id="syncStatus">
-            <span class="sync-dot"></span>
-            <span id="syncText">Carregando dados...</span>
-          </span>
-          <button type="button" id="refreshBtn" class="mini-btn" title="Buscar novos meses no Banco Central">Atualizar</button>
-        </div>
         <h1>Renda Fixa Brasileira</h1>
-        <p class="subtitle" id="headerSubtitle">
-          Série histórica mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (Jan/2000 – Out/2026)
-        </p>
       </div>
       <div class="header-actions">
         <button id="exportPdfBtn" class="theme-btn" type="button" title="Exportar relatório da aba atual em PDF">
@@ -131,30 +120,13 @@
       <div class="control-group rates-group">
         <div class="rates-header">
           <label class="control-label">Taxas Personalizáveis (% a.a.)</label>
-          <button type="button" id="resetRatesBtn" class="mini-btn">Restaurar padrão</button>
+          <div class="rates-actions">
+            <button type="button" id="addIpcaBtn" class="mini-btn">+ IPCA+</button>
+            <button type="button" id="addPreBtn" class="mini-btn">+ Pré</button>
+            <button type="button" id="resetRatesBtn" class="mini-btn">Restaurar padrão</button>
+          </div>
         </div>
-        <div class="rates-inputs">
-          <label class="rate-field" style="--rate-color: #10b981">
-            <span>IPCA +</span>
-            <input type="number" id="rateIpca1" step="0.1" min="-50" max="200" value="6" />
-            <span class="unit">%</span>
-          </label>
-          <label class="rate-field" style="--rate-color: #8b5cf6">
-            <span>IPCA +</span>
-            <input type="number" id="rateIpca2" step="0.1" min="-50" max="200" value="7" />
-            <span class="unit">%</span>
-          </label>
-          <label class="rate-field" style="--rate-color: #ec4899">
-            <span>IPCA +</span>
-            <input type="number" id="rateIpca3" step="0.1" min="-50" max="200" value="7.4" />
-            <span class="unit">%</span>
-          </label>
-          <label class="rate-field" style="--rate-color: #f59e0b">
-            <span>Pré</span>
-            <input type="number" id="ratePre" step="0.1" min="-50" max="200" value="15" />
-            <span class="unit">%</span>
-          </label>
-        </div>
+        <div class="rates-inputs" id="ratesInputs"></div>
       </div>
 
       <div class="control-group series-group">
@@ -373,7 +345,7 @@
               <label class="control-label" for="simMonthly">Aporte Mensal (R$)</label>
               <label class="amount-field">
                 <span>R$</span>
-                <input type="number" id="simMonthly" step="50" min="0" value="500" />
+                <input type="number" id="simMonthly" step="50" min="0" value="0" />
               </label>
             </div>
           </div>
@@ -400,7 +372,6 @@
 
         <div class="control-group rates-group">
           <div class="rates-header">
-            <label class="control-label">Parâmetros do Título e Benchmarks</label>
             <button type="button" id="simResetBtn" class="mini-btn">Restaurar padrões</button>
           </div>
           <div class="sim-params-grid">

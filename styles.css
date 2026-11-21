@@ -95,9 +95,9 @@ body {
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .header-badges {
@@ -561,7 +561,37 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rates-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rate-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.rate-remove-btn:hover {
+  background: rgba(225, 29, 72, 0.12);
+  color: #e11d48;
 }
 
 .rates-inputs {
@@ -594,7 +624,7 @@ h1 {
 
 .rate-field input,
 .amount-field input {
-  width: 68px;
+  width: 80px;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -751,6 +781,8 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
@@ -1055,8 +1087,38 @@ td.best-cell {
 }
 
 @media (max-width: 560px) {
+  .container {
+    padding: 20px 14px 40px;
+    gap: 16px;
+  }
+  h1 {
+    font-size: 1.2rem;
+  }
+  .theme-btn {
+    padding: 5px 9px;
+    font-size: 0.75rem;
+  }
+  .header-actions {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .controls-card,
+  .chart-card,
+  .table-card {
+    padding: 16px 14px;
+  }
+  .main-tabs {
+    gap: 16px;
+  }
+  .tab-btn {
+    font-size: 0.85rem;
+    padding: 8px 2px 10px;
+  }
   .sim-params-grid {
     grid-template-columns: 1fr;
+  }
+  .chart-wrapper {
+    height: 300px;
   }
 }
 

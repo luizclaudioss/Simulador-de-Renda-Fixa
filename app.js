@@ -1,86 +1,57 @@
 (() => {
   let DATA = Array.isArray(window.HISTORICAL_DATA) ? [...window.HISTORICAL_DATA] : [];
 
-  const DEFAULT_RATES = {
-    ipca1: 6.0,
-    ipca2: 7.0,
-    ipca3: 7.4,
-    pre: 15.0,
-  };
+  const RATE_PALETTE = [
+    "#635bff",
+    "#d97706",
+    "#09825d",
+    "#e11d48",
+    "#7c3aed",
+    "#0d9488",
+    "#ea580c",
+    "#4f46e5",
+  ];
 
-  const STORAGE_KEY = "cdi_ipca_custom_rates_v1";
+  const DEFAULT_CUSTOM_RATES = [
+    { id: "r1", kind: "ipca", rate: 7.0, color: "#635bff", visible: true },
+    { id: "r2", kind: "pre", rate: 15.0, color: "#d97706", visible: true },
+  ];
 
-  function loadRates() {
+  const STORAGE_KEY = "cdi_ipca_dynamic_rates_v2";
+
+  function loadCustomRates() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (saved && typeof saved === "object") {
-        return {
-          ipca1: Number.isFinite(Number(saved.ipca1)) ? Number(saved.ipca1) : DEFAULT_RATES.ipca1,
-          ipca2: Number.isFinite(Number(saved.ipca2)) ? Number(saved.ipca2) : DEFAULT_RATES.ipca2,
-          ipca3: Number.isFinite(Number(saved.ipca3)) ? Number(saved.ipca3) : DEFAULT_RATES.ipca3,
-          pre: Number.isFinite(Number(saved.pre)) ? Number(saved.pre) : DEFAULT_RATES.pre,
-        };
+      if (Array.isArray(saved) && saved.length > 0) {
+        return saved.map((item, idx) => ({
+          id: item.id || `r_${Date.now()}_${idx}`,
+          kind: item.kind === "pre" ? "pre" : "ipca",
+          rate: Number.isFinite(Number(item.rate)) ? Number(item.rate) : 7.0,
+          color: item.color || RATE_PALETTE[idx % RATE_PALETTE.length],
+          visible: item.visible !== false,
+        }));
       }
     } catch (_) {}
-    return { ...DEFAULT_RATES };
+    return DEFAULT_CUSTOM_RATES.map((r) => ({ ...r }));
   }
 
-  function saveRates(rates) {
+  function saveCustomRates() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rates));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(customRates));
     } catch (_) {}
   }
 
   function formatRateLabel(val) {
     return Number(val).toLocaleString("pt-BR", {
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   }
 
-  const rates = loadRates();
+  let customRates = loadCustomRates();
+  let nextRateSeq = 10;
 
-  const SERIES_CONFIG = [
-    {
-      id: "pre15",
-      get label() {
-        return `Pré ${formatRateLabel(rates.pre)}%`;
-      },
-      color: "#d97706",
-      visible: true,
-      isBenchmark: false,
-      monthlyFactor: () => Math.pow(1 + rates.pre / 100, 1 / 12),
-    },
-    {
-      id: "ipca74",
-      get label() {
-        return `IPCA+${formatRateLabel(rates.ipca3)}%`;
-      },
-      color: "#635bff",
-      visible: true,
-      isBenchmark: false,
-      monthlyFactor: (row) => (1 + row.ipca / 100) * Math.pow(1 + rates.ipca3 / 100, 1 / 12),
-    },
-    {
-      id: "ipca7",
-      get label() {
-        return `IPCA+${formatRateLabel(rates.ipca2)}%`;
-      },
-      color: "#e11d48",
-      visible: true,
-      isBenchmark: false,
-      monthlyFactor: (row) => (1 + row.ipca / 100) * Math.pow(1 + rates.ipca2 / 100, 1 / 12),
-    },
-    {
-      id: "ipca6",
-      get label() {
-        return `IPCA+${formatRateLabel(rates.ipca1)}%`;
-      },
-      color: "#09825d",
-      visible: true,
-      isBenchmark: false,
-      monthlyFactor: (row) => (1 + row.ipca / 100) * Math.pow(1 + rates.ipca1 / 100, 1 / 12),
-    },
+  const FIXED_BENCHMARKS = [
     {
       id: "cdi",
       label: "CDI",
@@ -99,6 +70,25 @@
       monthlyFactor: (row) => 1 + row.ipca / 100,
     },
   ];
+
+  function getSeriesConfig() {
+    const customSeries = customRates.map((cr) => ({
+      id: cr.id,
+      label:
+        cr.kind === "pre"
+          ? `Pré ${formatRateLabel(cr.rate)}%`
+          : `IPCA+${formatRateLabel(cr.rate)}%`,
+      color: cr.color,
+      visible: cr.visible,
+      isBenchmark: false,
+      customRef: cr,
+      monthlyFactor:
+        cr.kind === "pre"
+          ? () => Math.pow(1 + cr.rate / 100, 1 / 12)
+          : (row) => (1 + row.ipca / 100) * Math.pow(1 + cr.rate / 100, 1 / 12),
+    }));
+    return [...customSeries, ...FIXED_BENCHMARKS];
+  }
 
   const AMOUNT_STORAGE_KEY = "cdi_ipca_initial_amount_v1";
 
@@ -149,7 +139,7 @@
   let fullIndex = {};
   function rebuildFullIndex() {
     fullIndex = {};
-    for (const s of SERIES_CONFIG) {
+    for (const s of getSeriesConfig()) {
       const arr = [1.0];
       for (let i = 0; i < DATA.length; i++) {
         arr.push(arr[i] * s.monthlyFactor(DATA[i]));
@@ -184,10 +174,9 @@
   const themeIcon = document.getElementById("themeIcon");
   const themeLabel = document.getElementById("themeLabel");
 
-  const rateIpca1El = document.getElementById("rateIpca1");
-  const rateIpca2El = document.getElementById("rateIpca2");
-  const rateIpca3El = document.getElementById("rateIpca3");
-  const ratePreEl = document.getElementById("ratePre");
+  const ratesInputsEl = document.getElementById("ratesInputs");
+  const addIpcaBtn = document.getElementById("addIpcaBtn");
+  const addPreBtn = document.getElementById("addPreBtn");
   const resetRatesBtn = document.getElementById("resetRatesBtn");
   const initialAmountEl = document.getElementById("initialAmount");
 
@@ -307,7 +296,7 @@
   }
 
   function updateHeaderSubtitle() {
-    if (!DATA.length) return;
+    if (!DATA.length || !headerSubtitleEl) return;
     const first = formatMonthLabel(DATA[0].m);
     const last = formatMonthLabel(DATA[DATA.length - 1].m);
     headerSubtitleEl.innerHTML = `Série histórica mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (${first} – ${last} • ${DATA.length} meses)`;
@@ -393,7 +382,7 @@
       renderChart();
     });
 
-    refreshBtn.addEventListener("click", () => syncFromBCB());
+    if (refreshBtn) refreshBtn.addEventListener("click", () => syncFromBCB());
     exportPdfBtn.addEventListener("click", () => window.print());
     downloadMainPngBtn.addEventListener("click", () => {
       window.exportChartAsPng(
@@ -443,38 +432,82 @@
     link.click();
   };
 
-  function initRateInputs() {
-    const syncInputsFromState = () => {
-      rateIpca1El.value = rates.ipca1;
-      rateIpca2El.value = rates.ipca2;
-      rateIpca3El.value = rates.ipca3;
-      ratePreEl.value = rates.pre;
-    };
-    syncInputsFromState();
+  function renderRateInputs() {
+    ratesInputsEl.innerHTML = "";
+    customRates.forEach((cr) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "rate-field";
+      wrapper.style.setProperty("--rate-color", cr.color);
+      wrapper.innerHTML = `
+        <span>${cr.kind === "pre" ? "Pré" : "IPCA +"}</span>
+        <input type="number" step="0.01" min="-50" max="200" value="${Number(cr.rate).toFixed(2)}" aria-label="${cr.kind === "pre" ? "Taxa Pré" : "Taxa IPCA+"}" />
+        <span class="unit">%</span>
+        <button type="button" class="rate-remove-btn" title="Remover taxa" aria-label="Remover taxa">×</button>
+      `;
 
-    const bindInput = (el, key) => {
-      el.addEventListener("input", () => {
-        const parsed = parseFloat(el.value);
+      const input = wrapper.querySelector("input");
+      input.addEventListener("input", () => {
+        const parsed = parseFloat(input.value);
         if (!Number.isFinite(parsed) || parsed <= -100) return;
-        rates[key] = parsed;
-        saveRates(rates);
+        cr.rate = parsed;
+        saveCustomRates();
         rebuildFullIndex();
         initSeriesPills();
         renderAnnualTable();
         render();
       });
-    };
 
-    bindInput(rateIpca1El, "ipca1");
-    bindInput(rateIpca2El, "ipca2");
-    bindInput(rateIpca3El, "ipca3");
-    bindInput(ratePreEl, "pre");
+      input.addEventListener("blur", () => {
+        input.value = Number(cr.rate).toFixed(2);
+      });
+
+      const removeBtn = wrapper.querySelector(".rate-remove-btn");
+      removeBtn.addEventListener("click", () => {
+        customRates = customRates.filter((item) => item.id !== cr.id);
+        saveCustomRates();
+        rebuildFullIndex();
+        renderRateInputs();
+        initSeriesPills();
+        renderAnnualTable();
+        render();
+      });
+
+      ratesInputsEl.appendChild(wrapper);
+    });
+  }
+
+  function addCustomRate(kind) {
+    const usedColors = new Set(customRates.map((r) => r.color));
+    const nextColor =
+      RATE_PALETTE.find((c) => !usedColors.has(c)) ||
+      RATE_PALETTE[customRates.length % RATE_PALETTE.length];
+    const defaultVal = kind === "pre" ? 13.5 : 6.0;
+    customRates.push({
+      id: `r_${Date.now()}_${nextRateSeq++}`,
+      kind,
+      rate: defaultVal,
+      color: nextColor,
+      visible: true,
+    });
+    saveCustomRates();
+    rebuildFullIndex();
+    renderRateInputs();
+    initSeriesPills();
+    renderAnnualTable();
+    render();
+  }
+
+  function initRateInputs() {
+    renderRateInputs();
+
+    addIpcaBtn.addEventListener("click", () => addCustomRate("ipca"));
+    addPreBtn.addEventListener("click", () => addCustomRate("pre"));
 
     resetRatesBtn.addEventListener("click", () => {
-      Object.assign(rates, DEFAULT_RATES);
-      saveRates(rates);
-      syncInputsFromState();
+      customRates = DEFAULT_CUSTOM_RATES.map((r) => ({ ...r }));
+      saveCustomRates();
       rebuildFullIndex();
+      renderRateInputs();
       initSeriesPills();
       renderAnnualTable();
       render();
@@ -498,15 +531,24 @@
 
   function initSeriesPills() {
     seriesPillsEl.innerHTML = "";
-    SERIES_CONFIG.forEach((s) => {
+    getSeriesConfig().forEach((s) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `series-pill ${s.visible ? "active" : ""}`;
       btn.style.setProperty("--pill-color", s.color);
       btn.innerHTML = `<span class="pill-dot"></span><span>${s.label}</span>`;
       btn.addEventListener("click", () => {
-        s.visible = !s.visible;
-        btn.classList.toggle("active", s.visible);
+        if (s.customRef) {
+          s.customRef.visible = !s.customRef.visible;
+          saveCustomRates();
+          btn.classList.toggle("active", s.customRef.visible);
+        } else {
+          const fixed = FIXED_BENCHMARKS.find((b) => b.id === s.id);
+          if (fixed) {
+            fixed.visible = !fixed.visible;
+            btn.classList.toggle("active", fixed.visible);
+          }
+        }
         render();
       });
       seriesPillsEl.appendChild(btn);
@@ -523,7 +565,7 @@
     const ipcaEnd = fullIndex["ipca"][eIdx + 1];
     const ipcaFactor = ipcaEnd / ipcaBase;
 
-    const results = SERIES_CONFIG.map((s) => {
+    const results = getSeriesConfig().map((s) => {
       const base = fullIndex[s.id][sIdx];
       const end = fullIndex[s.id][eIdx + 1];
       const factor = end / base;
@@ -605,7 +647,7 @@
       }
     }
 
-    const datasets = SERIES_CONFIG.filter((s) => s.visible).map((s) => {
+    const datasets = getSeriesConfig().filter((s) => s.visible).map((s) => {
       const idxArr = fullIndex[s.id];
       const ipcaArr = fullIndex["ipca"];
       const points = [];
@@ -836,16 +878,17 @@
       yearsMap.get(y).push(row);
     });
 
+    const seriesList = getSeriesConfig();
     thead.innerHTML = `
       <tr>
         <th>Ano</th>
-        ${SERIES_CONFIG.map((s) => `<th>${s.label}</th>`).join("")}
+        ${seriesList.map((s) => `<th>${s.label}</th>`).join("")}
       </tr>
     `;
 
     tbody.innerHTML = "";
     for (const [year, rows] of yearsMap.entries()) {
-      const returns = SERIES_CONFIG.map((s) => {
+      const returns = seriesList.map((s) => {
         let f = 1.0;
         for (const r of rows) {
           f *= s.monthlyFactor(r);
@@ -875,13 +918,13 @@
   }
 
   function setSyncStatus(mode, text) {
-    syncStatusEl.className = `sync-status ${mode}`;
-    syncTextEl.textContent = text;
+    if (syncStatusEl) syncStatusEl.className = `sync-status ${mode}`;
+    if (syncTextEl) syncTextEl.textContent = text;
   }
 
   async function syncFromBCB() {
     setSyncStatus("loading", "Sincronizando com BCB...");
-    refreshBtn.disabled = true;
+    if (refreshBtn) refreshBtn.disabled = true;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
@@ -939,7 +982,7 @@
       setSyncStatus("offline", `Base local até ${latestLabel} (offline)`);
     } finally {
       clearTimeout(timer);
-      refreshBtn.disabled = false;
+      if (refreshBtn) refreshBtn.disabled = false;
     }
   }
 
