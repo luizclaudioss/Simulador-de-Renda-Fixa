@@ -28,10 +28,15 @@
           Série histórica mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (Jan/2000 – Out/2026)
         </p>
       </div>
-      <button id="themeToggle" class="theme-btn" type="button" aria-label="Alternar tema">
-        <span id="themeIcon" class="theme-dot"></span>
-        <span id="themeLabel">Modo Escuro</span>
-      </button>
+      <div class="header-actions">
+        <button id="exportPdfBtn" class="theme-btn" type="button" title="Exportar relatório da aba atual em PDF">
+          <span>Exportar PDF</span>
+        </button>
+        <button id="themeToggle" class="theme-btn" type="button" aria-label="Alternar tema">
+          <span id="themeIcon" class="theme-dot"></span>
+          <span id="themeLabel">Modo Escuro</span>
+        </button>
+      </div>
     </header>
 
     <nav class="main-tabs" role="tablist">
@@ -40,6 +45,9 @@
       </button>
       <button type="button" class="tab-btn" data-tab="comparator" role="tab" aria-selected="false">
         Comparador &amp; Equivalência de Taxas
+      </button>
+      <button type="button" class="tab-btn" data-tab="simulator" role="tab" aria-selected="false">
+        Simulador com Data de Resgate
       </button>
     </nav>
 
@@ -75,10 +83,47 @@
             <button type="button" class="seg-btn" data-months="36">3A</button>
             <button type="button" class="seg-btn" data-months="12">1A</button>
           </div>
-          <div class="date-range">
-            <select id="startMonth" aria-label="Mês inicial"></select>
-            <span>até</span>
-            <select id="endMonth" aria-label="Mês final"></select>
+          <div class="date-picker" id="datePicker">
+            <button type="button" class="date-trigger" id="dateTrigger" aria-expanded="false" aria-haspopup="dialog">
+              <svg class="cal-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M2 6.5H14M5.5 1.5V4M10.5 1.5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              <span id="dateTriggerText">Jan/2000 – Out/2026</span>
+              <svg class="chev-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="date-popover" id="datePopover" role="dialog" aria-label="Selecionar período">
+              <div class="dp-columns">
+                <div class="dp-col" id="dpStartCol">
+                  <div class="dp-col-head">
+                    <span class="dp-col-title">Início</span>
+                    <div class="dp-year-nav">
+                      <button type="button" class="dp-nav-btn" data-side="start" data-dir="-1" aria-label="Ano anterior">‹</button>
+                      <span class="dp-year-label" id="dpStartYear">2000</span>
+                      <button type="button" class="dp-nav-btn" data-side="start" data-dir="1" aria-label="Próximo ano">›</button>
+                    </div>
+                  </div>
+                  <div class="dp-months" id="dpStartMonths"></div>
+                </div>
+                <div class="dp-col" id="dpEndCol">
+                  <div class="dp-col-head">
+                    <span class="dp-col-title">Fim</span>
+                    <div class="dp-year-nav">
+                      <button type="button" class="dp-nav-btn" data-side="end" data-dir="-1" aria-label="Ano anterior">‹</button>
+                      <span class="dp-year-label" id="dpEndYear">2026</span>
+                      <button type="button" class="dp-nav-btn" data-side="end" data-dir="1" aria-label="Próximo ano">›</button>
+                    </div>
+                  </div>
+                  <div class="dp-months" id="dpEndMonths"></div>
+                </div>
+              </div>
+              <div class="dp-footer">
+                <span class="dp-summary" id="dpSummary">322 meses</span>
+                <button type="button" class="dp-done-btn" id="dpDoneBtn">Concluir</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -125,6 +170,9 @@
         <div>
           <h2 id="chartTitle">Rentabilidade Acumulada (%)</h2>
           <p id="chartSubtitle" class="chart-sub"></p>
+        </div>
+        <div class="chart-actions">
+          <button type="button" id="downloadMainPngBtn" class="mini-btn">Baixar gráfico (PNG)</button>
         </div>
       </div>
       <div class="chart-wrapper">
@@ -291,10 +339,168 @@
         </p>
       </footer>
     </main>
+
+    <main id="tab-simulator" class="tab-panel">
+      <section class="controls-card">
+        <div class="control-group">
+          <label class="control-label">Objetivo da Simulação</label>
+          <div class="segmented" id="simModeSelector">
+            <button type="button" class="seg-btn active" data-mode="invest">Quanto quero investir hoje</button>
+            <button type="button" class="seg-btn" data-mode="goal">Quanto quero resgatar no futuro</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="simStartDate">Data da Aplicação</label>
+          <input type="date" id="simStartDate" class="sim-date-input" />
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="simEndDate">Data do Resgate</label>
+          <input type="date" id="simEndDate" class="sim-date-input" value="2031-03-01" />
+        </div>
+
+        <div class="control-group sim-amount-group" id="simInvestInputs">
+          <div class="sim-inline-fields">
+            <div class="control-group">
+              <label class="control-label" for="simInitial">Aporte Inicial (R$)</label>
+              <label class="amount-field">
+                <span>R$</span>
+                <input type="number" id="simInitial" step="100" min="0" value="10000" />
+              </label>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="simMonthly">Aporte Mensal (R$)</label>
+              <label class="amount-field">
+                <span>R$</span>
+                <input type="number" id="simMonthly" step="50" min="0" value="500" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group sim-amount-group hidden" id="simGoalInputs">
+          <div class="sim-inline-fields">
+            <div class="control-group">
+              <label class="control-label" for="simTargetNet">Meta Líquida no Resgate (R$)</label>
+              <label class="amount-field">
+                <span>R$</span>
+                <input type="number" id="simTargetNet" step="500" min="1" value="100000" />
+              </label>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="simGoalMonthly">Aporte Mensal Opcional (R$)</label>
+              <label class="amount-field">
+                <span>R$</span>
+                <input type="number" id="simGoalMonthly" step="50" min="0" value="0" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group rates-group">
+          <div class="rates-header">
+            <label class="control-label">Parâmetros do Título e Benchmarks</label>
+            <button type="button" id="simResetBtn" class="mini-btn">Restaurar padrões</button>
+          </div>
+          <div class="sim-params-grid">
+            <label class="eq-field">
+              <span>Título Principal</span>
+              <select id="simBondType">
+                <option value="ipca">Tesouro IPCA+</option>
+                <option value="pre">Tesouro Prefixado</option>
+                <option value="selic">Tesouro Selic</option>
+                <option value="educa">Tesouro Educa+ (IPCA+)</option>
+                <option value="renda">Tesouro Renda+ (IPCA+)</option>
+              </select>
+            </label>
+            <label class="eq-field">
+              <span id="simBondRateLabel">Taxa Real (% a.a.)</span>
+              <input type="number" id="simBondRate" step="0.05" value="7.00" />
+            </label>
+            <label class="eq-field">
+              <span>Taxa B3 / Custódia (% a.a.)</span>
+              <input type="number" id="simCustody" step="0.05" min="0" value="0.20" />
+            </label>
+            <label class="eq-field">
+              <span>IPCA Esperado (% a.a.)</span>
+              <input type="number" id="simExpIpca" step="0.1" value="4.50" />
+            </label>
+            <label class="eq-field">
+              <span>Selic / CDI (% a.a.)</span>
+              <input type="number" id="simExpSelic" step="0.25" min="0" value="14.25" />
+            </label>
+            <label class="eq-field">
+              <span>CDB (% do CDI)</span>
+              <input type="number" id="simCdbPct" step="1" min="0" value="100" />
+            </label>
+            <label class="eq-field">
+              <span>LCI / LCA (% do CDI)</span>
+              <input type="number" id="simLciPct" step="1" min="0" value="90" />
+            </label>
+            <label class="eq-field">
+              <span>Fundo DI (% CDI / Adm %)</span>
+              <div class="sim-dual-input">
+                <input type="number" id="simFundPct" step="1" min="0" value="98" aria-label="Fundo DI % CDI" />
+                <input type="number" id="simFundFee" step="0.1" min="0" value="0.50" aria-label="Taxa adm Fundo DI" />
+              </div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="kpi-grid" id="simKpiGrid"></section>
+
+      <section class="chart-card">
+        <div class="chart-header">
+          <div>
+            <h2 id="simChartTitle">Projeção de Evolução até o Resgate</h2>
+            <p class="chart-sub" id="simChartSub"></p>
+          </div>
+          <div class="chart-actions">
+            <button type="button" id="downloadSimPngBtn" class="mini-btn">Baixar gráfico (PNG)</button>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="simChart"></canvas>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div class="table-header">
+          <div>
+            <h2>Comparativo Líquido na Data de Resgate</h2>
+            <p class="chart-sub" id="simTableSub"></p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table id="simTable">
+            <thead>
+              <tr>
+                <th>Alternativa</th>
+                <th>Total Investido</th>
+                <th>Valor Bruto</th>
+                <th>IR + Taxas</th>
+                <th>Valor Líquido</th>
+                <th>Rentab. Líq.</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>
+          <strong>Premissas da simulação:</strong> A alíquota de IR regressivo é calculada pela quantidade exata de dias corridos de cada aporte até a data de resgate (22,5% até 180d; 20% até 360d; 17,5% até 720d; 15% acima de 720d). Regra B3 aplicada: 0,20% a.a. para Prefixado/IPCA+; no <strong>Tesouro Selic</strong>, isenção até R$ 10.000,00 (0,20% a.a. apenas sobre o excedente); no <strong>Educa+</strong> e <strong>Renda+</strong>, 0,00% se mantidos até o vencimento. LCI/LCA e Poupança são isentas de IR.
+        </p>
+      </footer>
+    </main>
   </div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>
   <script src="comparator.js"></script>
+  <script src="simulator.js"></script>
 </body>
 </html>

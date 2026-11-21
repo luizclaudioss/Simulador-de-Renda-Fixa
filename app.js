@@ -160,8 +160,16 @@
   rebuildFullIndex();
 
   // DOM refs
-  const startSelect = document.getElementById("startMonth");
-  const endSelect = document.getElementById("endMonth");
+  const datePickerEl = document.getElementById("datePicker");
+  const dateTriggerEl = document.getElementById("dateTrigger");
+  const dateTriggerTextEl = document.getElementById("dateTriggerText");
+  const datePopoverEl = document.getElementById("datePopover");
+  const dpStartYearEl = document.getElementById("dpStartYear");
+  const dpEndYearEl = document.getElementById("dpEndYear");
+  const dpStartMonthsEl = document.getElementById("dpStartMonths");
+  const dpEndMonthsEl = document.getElementById("dpEndMonths");
+  const dpSummaryEl = document.getElementById("dpSummary");
+  const dpDoneBtn = document.getElementById("dpDoneBtn");
   const seriesPillsEl = document.getElementById("seriesPills");
   const kpiGridEl = document.getElementById("kpiGrid");
   const chartTitleEl = document.getElementById("chartTitle");
@@ -170,6 +178,8 @@
   const syncStatusEl = document.getElementById("syncStatus");
   const syncTextEl = document.getElementById("syncText");
   const refreshBtn = document.getElementById("refreshBtn");
+  const exportPdfBtn = document.getElementById("exportPdfBtn");
+  const downloadMainPngBtn = document.getElementById("downloadMainPngBtn");
   const themeToggle = document.getElementById("themeToggle");
   const themeIcon = document.getElementById("themeIcon");
   const themeLabel = document.getElementById("themeLabel");
@@ -181,19 +191,96 @@
   const resetRatesBtn = document.getElementById("resetRatesBtn");
   const initialAmountEl = document.getElementById("initialAmount");
 
+  const dpView = {
+    startYear: DATA.length ? parseInt(DATA[0].m.slice(0, 4), 10) : 2000,
+    endYear: DATA.length ? parseInt(DATA[DATA.length - 1].m.slice(0, 4), 10) : 2026,
+  };
+
+  function getMinMaxYears() {
+    if (!DATA.length) return { minY: 2000, maxY: 2026 };
+    return {
+      minY: parseInt(DATA[0].m.slice(0, 4), 10),
+      maxY: parseInt(DATA[DATA.length - 1].m.slice(0, 4), 10),
+    };
+  }
+
+  function updateDateTriggerLabel() {
+    if (!DATA.length) return;
+    const startLabel = formatMonthLabel(DATA[state.startIdx].m);
+    const endLabel = formatMonthLabel(DATA[state.endIdx].m);
+    dateTriggerTextEl.textContent = `${startLabel} – ${endLabel}`;
+    const count = state.endIdx - state.startIdx + 1;
+    dpSummaryEl.textContent = `${count} ${count === 1 ? "mês selecionado" : "meses selecionados"}`;
+  }
+
+  function renderDatePopoverGrid(side) {
+    const isStart = side === "start";
+    const year = isStart ? dpView.startYear : dpView.endYear;
+    const yearEl = isStart ? dpStartYearEl : dpEndYearEl;
+    const gridEl = isStart ? dpStartMonthsEl : dpEndMonthsEl;
+    const { minY, maxY } = getMinMaxYears();
+
+    yearEl.textContent = year;
+
+    const prevBtn = datePopoverEl.querySelector(`.dp-nav-btn[data-side="${side}"][data-dir="-1"]`);
+    const nextBtn = datePopoverEl.querySelector(`.dp-nav-btn[data-side="${side}"][data-dir="1"]`);
+    if (prevBtn) prevBtn.disabled = year <= minY;
+    if (nextBtn) nextBtn.disabled = year >= maxY;
+
+    const ymIndexMap = new Map(DATA.map((r, i) => [r.m, i]));
+    gridEl.innerHTML = "";
+
+    MONTH_NAMES.forEach((mName, mIdx) => {
+      const ym = `${year}-${String(mIdx + 1).padStart(2, "0")}`;
+      const idx = ymIndexMap.get(ym);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dp-month-btn";
+      btn.textContent = mName;
+
+      if (idx === undefined) {
+        btn.disabled = true;
+      } else {
+        if ((isStart && idx === state.startIdx) || (!isStart && idx === state.endIdx)) {
+          btn.classList.add("selected");
+        } else if (idx >= state.startIdx && idx <= state.endIdx) {
+          btn.classList.add("in-range");
+        }
+
+        btn.addEventListener("click", () => {
+          if (isStart) {
+            state.startIdx = idx;
+            if (state.startIdx > state.endIdx) state.endIdx = state.startIdx;
+          } else {
+            state.endIdx = idx;
+            if (state.endIdx < state.startIdx) state.startIdx = state.endIdx;
+          }
+          clearPeriodButtons();
+          updateDateTriggerLabel();
+          renderDatePopover();
+          render();
+        });
+      }
+
+      gridEl.appendChild(btn);
+    });
+  }
+
+  function renderDatePopover() {
+    renderDatePopoverGrid("start");
+    renderDatePopoverGrid("end");
+  }
+
+  function syncPopoverYearsToSelection() {
+    if (!DATA.length) return;
+    dpView.startYear = parseInt(DATA[state.startIdx].m.slice(0, 4), 10);
+    dpView.endYear = parseInt(DATA[state.endIdx].m.slice(0, 4), 10);
+  }
+
   function populateDateSelectors(keepEndAtLatest = false) {
     const prevStartYm = DATA[state.startIdx]?.m;
     const prevEndYm = DATA[state.endIdx]?.m;
     const wasAtEnd = state.endIdx >= DATA.length - 1;
-
-    startSelect.innerHTML = "";
-    endSelect.innerHTML = "";
-
-    DATA.forEach((row, idx) => {
-      const label = formatMonthLabel(row.m);
-      startSelect.add(new Option(label, idx));
-      endSelect.add(new Option(label, idx));
-    });
 
     if (keepEndAtLatest || wasAtEnd) {
       const activePeriodBtn = document.querySelector("#periodSelector .seg-btn.active");
@@ -213,8 +300,9 @@
       state.endIdx = foundEnd >= 0 ? foundEnd : DATA.length - 1;
     }
 
-    startSelect.value = state.startIdx;
-    endSelect.value = state.endIdx;
+    syncPopoverYearsToSelection();
+    updateDateTriggerLabel();
+    renderDatePopover();
     updateHeaderSubtitle();
   }
 
@@ -222,36 +310,55 @@
     if (!DATA.length) return;
     const first = formatMonthLabel(DATA[0].m);
     const last = formatMonthLabel(DATA[DATA.length - 1].m);
-    headerSubtitleEl.innerHTML = `Comparativo mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (${first} – ${last} • ${DATA.length} meses)`;
+    headerSubtitleEl.innerHTML = `Série histórica mensal de <strong>CDI</strong>, <strong>IPCA+</strong> e <strong>Prefixado</strong> (${first} – ${last} • ${DATA.length} meses)`;
+  }
+
+  function closeDatePopover() {
+    datePopoverEl.classList.remove("open");
+    dateTriggerEl.setAttribute("aria-expanded", "false");
   }
 
   function initSelectors() {
     populateDateSelectors(true);
 
-    startSelect.addEventListener("change", () => {
-      let s = parseInt(startSelect.value, 10);
-      let e = parseInt(endSelect.value, 10);
-      if (s > e) {
-        e = s;
-        endSelect.value = e;
+    dateTriggerEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = datePopoverEl.classList.contains("open");
+      if (isOpen) {
+        closeDatePopover();
+      } else {
+        syncPopoverYearsToSelection();
+        renderDatePopover();
+        datePopoverEl.classList.add("open");
+        dateTriggerEl.setAttribute("aria-expanded", "true");
       }
-      state.startIdx = s;
-      state.endIdx = e;
-      clearPeriodButtons();
-      render();
     });
 
-    endSelect.addEventListener("change", () => {
-      let s = parseInt(startSelect.value, 10);
-      let e = parseInt(endSelect.value, 10);
-      if (e < s) {
-        s = e;
-        startSelect.value = s;
+    datePopoverEl.querySelectorAll(".dp-nav-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const side = btn.dataset.side;
+        const dir = parseInt(btn.dataset.dir, 10);
+        const { minY, maxY } = getMinMaxYears();
+        if (side === "start") {
+          dpView.startYear = Math.min(maxY, Math.max(minY, dpView.startYear + dir));
+        } else {
+          dpView.endYear = Math.min(maxY, Math.max(minY, dpView.endYear + dir));
+        }
+        renderDatePopover();
+      });
+    });
+
+    dpDoneBtn.addEventListener("click", () => closeDatePopover());
+
+    document.addEventListener("click", (e) => {
+      if (!datePickerEl.contains(e.target)) {
+        closeDatePopover();
       }
-      state.startIdx = s;
-      state.endIdx = e;
-      clearPeriodButtons();
-      render();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDatePopover();
     });
 
     document.querySelectorAll("#metricSelector .seg-btn").forEach((btn) => {
@@ -270,8 +377,9 @@
         const months = parseInt(btn.dataset.months, 10);
         state.endIdx = DATA.length - 1;
         state.startIdx = Math.max(0, DATA.length - months);
-        startSelect.value = state.startIdx;
-        endSelect.value = state.endIdx;
+        syncPopoverYearsToSelection();
+        updateDateTriggerLabel();
+        renderDatePopover();
         render();
       });
     });
@@ -286,7 +394,54 @@
     });
 
     refreshBtn.addEventListener("click", () => syncFromBCB());
+    exportPdfBtn.addEventListener("click", () => window.print());
+    downloadMainPngBtn.addEventListener("click", () => {
+      window.exportChartAsPng(
+        "mainChart",
+        chartTitleEl.textContent,
+        chartSubtitleEl.textContent,
+        "comparativo-renda-fixa.png"
+      );
+    });
   }
+
+  window.exportChartAsPng = function exportChartAsPng(canvasId, title, subtitle, filename) {
+    const src = document.getElementById(canvasId);
+    if (!src) return;
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const bg = isDark ? "#111927" : "#ffffff";
+    const titleColor = isDark ? "#f1f5f9" : "#0a2540";
+    const subColor = isDark ? "#8b9bb4" : "#697386";
+
+    const padX = 28;
+    const headerH = 66;
+    const padBottom = 20;
+    const out = document.createElement("canvas");
+    out.width = src.width + padX * 2;
+    out.height = src.height + headerH + padBottom;
+
+    const ctx = out.getContext("2d");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, out.width, out.height);
+
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = titleColor;
+    ctx.font = "600 17px Inter, -apple-system, sans-serif";
+    ctx.fillText(title, padX / dpr, 28);
+    ctx.fillStyle = subColor;
+    ctx.font = "400 13px Inter, -apple-system, sans-serif";
+    ctx.fillText(subtitle, padX / dpr, 48);
+    ctx.restore();
+
+    ctx.drawImage(src, padX, headerH);
+
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = out.toDataURL("image/png", 1.0);
+    link.click();
+  };
 
   function initRateInputs() {
     const syncInputsFromState = () => {
@@ -520,9 +675,96 @@
       state.chart.destroy();
     }
 
+    const topLeftLegendPlugin = {
+      id: "topLeftLegend",
+      afterDraw(chart) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+
+        const items = chart.data.datasets
+          .map((ds) => {
+            const vals = ds.data.filter((v) => v !== null && v !== undefined);
+            const lastVal = vals.length ? vals[vals.length - 1] : null;
+            return { label: ds.label, color: ds.borderColor, lastVal };
+          })
+          .sort((a, b) => (b.lastVal ?? -Infinity) - (a.lastVal ?? -Infinity));
+
+        if (!items.length) return;
+
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const boxBg = isDark ? "rgba(17, 25, 39, 0.92)" : "rgba(255, 255, 255, 0.94)";
+        const boxBorder = isDark ? "#232f45" : "#e3e8ee";
+        const textMain = isDark ? "#f1f5f9" : "#0a2540";
+        const textSub = isDark ? "#8b9bb4" : "#697386";
+
+        ctx.save();
+        ctx.font = "600 11.5px Inter, -apple-system, sans-serif";
+        const lineH = 20;
+        const padX = 12;
+        const padY = 10;
+        const headerH = 18;
+
+        const formatted = items.map((it) => {
+          let vStr = "—";
+          if (it.lastVal !== null) {
+            vStr =
+              state.metric === "brl"
+                ? formatBRL(it.lastVal)
+                : `${it.lastVal >= 0 ? "+" : ""}${formatPct(it.lastVal)}`;
+          }
+          return { ...it, vStr, text: `${it.label}: ${vStr}` };
+        });
+
+        let maxW = ctx.measureText("Fechamento do período").width;
+        for (const f of formatted) {
+          const w = 16 + ctx.measureText(f.text).width;
+          if (w > maxW) maxW = w;
+        }
+
+        const boxW = maxW + padX * 2;
+        const boxH = padY * 2 + headerH + formatted.length * lineH - 4;
+        const x = chartArea.left + 14;
+        const y = chartArea.top + 12;
+
+        // Rounded card
+        ctx.fillStyle = boxBg;
+        ctx.strokeStyle = boxBorder;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, boxW, boxH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Header
+        ctx.fillStyle = textSub;
+        ctx.font = "600 10.5px Inter, -apple-system, sans-serif";
+        ctx.fillText(
+          `${formatMonthLabel(DATA[state.endIdx].m)} • Acumulado`,
+          x + padX,
+          y + padY + 9
+        );
+
+        // Rows
+        formatted.forEach((f, idx) => {
+          const ry = y + padY + headerH + idx * lineH;
+          ctx.fillStyle = f.color;
+          ctx.beginPath();
+          ctx.roundRect(x + padX, ry + 2, 10, 10, 2);
+          ctx.fill();
+
+          ctx.fillStyle = textMain;
+          ctx.font = "600 11.5px Inter, -apple-system, sans-serif";
+          ctx.fillText(f.text, x + padX + 16, ry + 11);
+        });
+
+        ctx.restore();
+      },
+    };
+
     state.chart = new Chart(ctx, {
       type: "line",
       data: { labels, datasets },
+      plugins: [topLeftLegendPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
