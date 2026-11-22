@@ -3,15 +3,23 @@
 
   const liveInit = window.LIVE_RATES || { cdi: 13.65, ipca12m: 4.63 };
 
+  const eqState = {
+    cdi: liveInit.cdi,
+    ipca: liveInit.ipca12m,
+    termVal: 24,
+    termUnit: "months", // months | days
+    amount: 10000,
+    type: "cdi_pct",
+    rate: 100,
+    tax: "ir",
+  };
+
   const compState = {
     cdi: liveInit.cdi,
     ipca: liveInit.ipca12m,
     termVal: 24,
     termUnit: "months", // months | days
     amount: 10000,
-    eqType: "cdi_pct",
-    eqRate: 100,
-    eqTax: "ir",
     offers: [
       { id: 1, name: "CDB Pós-fixado", type: "cdi_pct", rate: 115, tax: "ir", color: COLORS[0] },
       { id: 2, name: "LCI / LCA Isenta", type: "cdi_pct", rate: 94, tax: "exempt", color: COLORS[1] },
@@ -22,28 +30,28 @@
     chart: null,
   };
 
-  function getIrRate() {
-    if (compState.termUnit === "days") {
-      if (compState.termVal <= 180) return 0.225;
-      if (compState.termVal <= 360) return 0.20;
-      if (compState.termVal <= 720) return 0.175;
+  function getIrRate(termVal, termUnit) {
+    if (termUnit === "days") {
+      if (termVal <= 180) return 0.225;
+      if (termVal <= 360) return 0.20;
+      if (termVal <= 720) return 0.175;
       return 0.15;
     }
-    if (compState.termVal <= 6) return 0.225;
-    if (compState.termVal <= 12) return 0.20;
-    if (compState.termVal < 24) return 0.175;
+    if (termVal <= 6) return 0.225;
+    if (termVal <= 12) return 0.20;
+    if (termVal < 24) return 0.175;
     return 0.15;
   }
 
-  function getTermYears() {
-    return compState.termUnit === "days" ? compState.termVal / 365 : compState.termVal / 12;
+  function getTermYears(termVal, termUnit) {
+    return termUnit === "days" ? termVal / 365 : termVal / 12;
   }
 
-  function formatTermLabel() {
-    if (compState.termUnit === "days") {
-      return `${compState.termVal} ${compState.termVal === 1 ? "dia" : "dias"}`;
+  function formatTermLabel(termVal, termUnit) {
+    if (termUnit === "days") {
+      return `${termVal} ${termVal === 1 ? "dia" : "dias"}`;
     }
-    return `${compState.termVal} ${compState.termVal === 1 ? "mês" : "meses"}`;
+    return `${termVal} ${termVal === 1 ? "mês" : "meses"}`;
   }
 
   function formatPct(val, decimals = 2) {
@@ -72,21 +80,20 @@
     return (1 + ipca) * (1 + rate / 100) - 1;
   }
 
-  function evaluateOption(type, rate, tax) {
-    const t = getTermYears();
-    const ir = tax === "exempt" ? 0 : getIrRate();
-    const annualGross = calcAnnualGross(type, rate, compState.cdi, compState.ipca);
+  function evaluateOption(type, rate, tax, ctxState = compState) {
+    const t = getTermYears(ctxState.termVal, ctxState.termUnit);
+    const irStd = getIrRate(ctxState.termVal, ctxState.termUnit);
+    const ir = tax === "exempt" ? 0 : irStd;
+    const annualGross = calcAnnualGross(type, rate, ctxState.cdi, ctxState.ipca);
     const grossFactor = Math.pow(1 + annualGross, t);
     const netFactor = 1 + (grossFactor - 1) * (1 - ir);
     const annualNet = Math.pow(netFactor, 1 / t) - 1;
-    const realAnnualNet = (1 + annualNet) / (1 + compState.ipca / 100) - 1;
-    const finalNet = compState.amount * netFactor;
+    const realAnnualNet = (1 + annualNet) / (1 + ctxState.ipca / 100) - 1;
+    const finalNet = ctxState.amount * netFactor;
 
-    // Equivalent % of CDI (taxed with IR)
-    const irStd = getIrRate();
     const reqGrossFactor = 1 + (netFactor - 1) / (1 - irStd);
     const reqAnnualGross = Math.pow(reqGrossFactor, 1 / t) - 1;
-    const equivCdiTaxed = compState.cdi > 0 ? (reqAnnualGross / (compState.cdi / 100)) * 100 : 0;
+    const equivCdiTaxed = ctxState.cdi > 0 ? (reqAnnualGross / (ctxState.cdi / 100)) * 100 : 0;
 
     return {
       ir,
@@ -101,12 +108,12 @@
     };
   }
 
-  function grossRatesForNetFactor(netFactor, irRate) {
-    const t = getTermYears();
+  function grossRatesForNetFactor(netFactor, irRate, ctxState = eqState) {
+    const t = getTermYears(ctxState.termVal, ctxState.termUnit);
     const reqGrossFactor = 1 + (netFactor - 1) / (1 - irRate);
     const reqAnnualGross = Math.pow(reqGrossFactor, 1 / t) - 1;
-    const cdi = compState.cdi / 100;
-    const ipca = compState.ipca / 100;
+    const cdi = ctxState.cdi / 100;
+    const ipca = ctxState.ipca / 100;
 
     return {
       cdiPct: cdi > 0 ? (reqAnnualGross / cdi) * 100 : 0,
@@ -144,12 +151,12 @@
   const compChartSubEl = document.getElementById("compChartSub");
 
   function renderEquivalence() {
-    const res = evaluateOption(compState.eqType, compState.eqRate, compState.eqTax);
-    const irStd = getIrRate();
-    const taxed = grossRatesForNetFactor(res.netFactor, irStd);
-    const exempt = grossRatesForNetFactor(res.netFactor, 0);
+    const res = evaluateOption(eqState.type, eqState.rate, eqState.tax, eqState);
+    const irStd = getIrRate(eqState.termVal, eqState.termUnit);
+    const taxed = grossRatesForNetFactor(res.netFactor, irStd, eqState);
+    const exempt = grossRatesForNetFactor(res.netFactor, 0, eqState);
 
-    eqSubtitleEl.textContent = `Prazo de ${formatTermLabel()} (IR regressivo de ${(irStd * 100).toFixed(1).replace(".", ",")}% sobre tributados) • CDI ${formatPct(compState.cdi)} | IPCA ${formatPct(compState.ipca)}`;
+    eqSubtitleEl.textContent = `Prazo de ${formatTermLabel(eqState.termVal, eqState.termUnit)} (IR regressivo de ${(irStd * 100).toFixed(1).replace(".", ",")}% sobre tributados) • CDI ${formatPct(eqState.cdi)} | IPCA ${formatPct(eqState.ipca)}`;
 
     const cards = [
       {
@@ -268,7 +275,7 @@
       .join("");
 
     // Chart
-    compChartSubEl.textContent = `Aplicação de ${formatBRL(compState.amount)} por ${formatTermLabel()} • Rentabilidade líquida acumulada no período (%)`;
+    compChartSubEl.textContent = `Aplicação de ${formatBRL(compState.amount)} por ${formatTermLabel(compState.termVal, compState.termUnit)} • Rentabilidade líquida acumulada no período (%)`;
 
     const styles = getComputedStyle(document.documentElement);
     const textColor = styles.getPropertyValue("--text-muted").trim();
@@ -333,7 +340,7 @@
 
   function updateLiveRatesBadge() {
     if (compLiveRatesEl) {
-      compLiveRatesEl.textContent = `CDI ${formatPct(compState.cdi)} • IPCA ${formatPct(compState.ipca)}`;
+      compLiveRatesEl.textContent = `BCB ao vivo: CDI ${formatPct(eqState.cdi)} • IPCA ${formatPct(eqState.ipca)}`;
     }
   }
 
@@ -420,17 +427,17 @@
     }
 
     eqTypeEl.addEventListener("change", () => {
-      compState.eqType = eqTypeEl.value;
+      eqState.type = eqTypeEl.value;
       renderEquivalence();
     });
     eqRateEl.addEventListener("input", () => {
       const v = parseFloat(eqRateEl.value);
       if (!Number.isFinite(v)) return;
-      compState.eqRate = v;
+      eqState.rate = v;
       renderEquivalence();
     });
     eqTaxEl.addEventListener("change", () => {
-      compState.eqTax = eqTaxEl.value;
+      eqState.tax = eqTaxEl.value;
       renderEquivalence();
     });
 
@@ -447,41 +454,51 @@
       });
     });
 
-    const syncTermInputs = () => {
-      if (eqTermValEl) eqTermValEl.value = compState.termVal;
-      if (eqTermUnitEl) eqTermUnitEl.value = compState.termUnit;
-      if (compTermValEl) compTermValEl.value = compState.termVal;
-      if (compTermUnitEl) compTermUnitEl.value = compState.termUnit;
-    };
+    if (eqTermValEl) {
+      eqTermValEl.addEventListener("input", () => {
+        const v = parseInt(eqTermValEl.value, 10);
+        if (!Number.isFinite(v) || v < 1) return;
+        eqState.termVal = v;
+        renderEquivalence();
+      });
+    }
+    if (eqTermUnitEl) {
+      eqTermUnitEl.addEventListener("change", () => {
+        const prevUnit = eqState.termUnit;
+        eqState.termUnit = eqTermUnitEl.value;
+        if (prevUnit !== eqState.termUnit) {
+          eqState.termVal =
+            eqState.termUnit === "days"
+              ? Math.round(eqState.termVal * 30)
+              : Math.max(1, Math.round(eqState.termVal / 30));
+          if (eqTermValEl) eqTermValEl.value = eqState.termVal;
+        }
+        renderEquivalence();
+      });
+    }
 
-    const bindTermControls = (valEl, unitEl) => {
-      if (valEl) {
-        valEl.addEventListener("input", () => {
-          const v = parseInt(valEl.value, 10);
-          if (!Number.isFinite(v) || v < 1) return;
-          compState.termVal = v;
-          syncTermInputs();
-          renderAllComparator();
-        });
-      }
-      if (unitEl) {
-        unitEl.addEventListener("change", () => {
-          const prevUnit = compState.termUnit;
-          compState.termUnit = unitEl.value;
-          if (prevUnit !== compState.termUnit) {
-            compState.termVal =
-              compState.termUnit === "days"
-                ? Math.round(compState.termVal * 30)
-                : Math.max(1, Math.round(compState.termVal / 30));
-          }
-          syncTermInputs();
-          renderAllComparator();
-        });
-      }
-    };
-
-    bindTermControls(eqTermValEl, eqTermUnitEl);
-    bindTermControls(compTermValEl, compTermUnitEl);
+    if (compTermValEl) {
+      compTermValEl.addEventListener("input", () => {
+        const v = parseInt(compTermValEl.value, 10);
+        if (!Number.isFinite(v) || v < 1) return;
+        compState.termVal = v;
+        renderComparisonOutputs();
+      });
+    }
+    if (compTermUnitEl) {
+      compTermUnitEl.addEventListener("change", () => {
+        const prevUnit = compState.termUnit;
+        compState.termUnit = compTermUnitEl.value;
+        if (prevUnit !== compState.termUnit) {
+          compState.termVal =
+            compState.termUnit === "days"
+              ? Math.round(compState.termVal * 30)
+              : Math.max(1, Math.round(compState.termVal / 30));
+          if (compTermValEl) compTermValEl.value = compState.termVal;
+        }
+        renderComparisonOutputs();
+      });
+    }
 
     addOfferBtn.addEventListener("click", () => {
       const color = COLORS[(compState.nextId - 1) % COLORS.length];
@@ -524,6 +541,8 @@
 
     window.addEventListener("live-rates-updated", (e) => {
       if (!e.detail) return;
+      if (Number.isFinite(e.detail.cdi)) eqState.cdi = e.detail.cdi;
+      if (Number.isFinite(e.detail.ipca12m)) eqState.ipca = e.detail.ipca12m;
       if (!userEditedCompCdi && Number.isFinite(e.detail.cdi)) {
         compState.cdi = e.detail.cdi;
         if (compCdiProjEl) compCdiProjEl.value = compState.cdi.toFixed(2);
