@@ -164,6 +164,7 @@
   const kpiGridEl = document.getElementById("kpiGrid");
   const chartTitleEl = document.getElementById("chartTitle");
   const chartSubtitleEl = document.getElementById("chartSubtitle");
+  const mainChartLegendEl = document.getElementById("mainChartLegend");
   const headerSubtitleEl = document.getElementById("headerSubtitle");
   const syncStatusEl = document.getElementById("syncStatus");
   const syncTextEl = document.getElementById("syncText");
@@ -385,25 +386,31 @@
     if (refreshBtn) refreshBtn.addEventListener("click", () => syncFromBCB());
     exportPdfBtn.addEventListener("click", () => window.print());
     downloadMainPngBtn.addEventListener("click", () => {
+      const legendItems = state.chart ? getMainChartLegendItems(state.chart.data.datasets) : [];
       window.exportChartAsPng(
         "mainChart",
         chartTitleEl.textContent,
         chartSubtitleEl.textContent,
-        "comparativo-renda-fixa.png"
+        "comparativo-renda-fixa.png",
+        legendItems
       );
     });
   }
 
-  window.exportChartAsPng = function exportChartAsPng(canvasId, title, subtitle, filename) {
+  window.exportChartAsPng = function exportChartAsPng(canvasId, title, subtitle, filename, legendItems = []) {
     const src = document.getElementById(canvasId);
     if (!src) return;
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const bg = isDark ? "#111927" : "#ffffff";
     const titleColor = isDark ? "#f1f5f9" : "#0a2540";
     const subColor = isDark ? "#8b9bb4" : "#697386";
+    const chipBg = isDark ? "#172133" : "#f7fafc";
+    const chipBorder = isDark ? "#232f45" : "#e3e8ee";
 
+    const dpr = window.devicePixelRatio || 1;
     const padX = 28;
-    const headerH = 66;
+    const legendRowH = legendItems.length ? 34 * dpr : 0;
+    const headerH = 66 * dpr + legendRowH;
     const padBottom = 20;
     const out = document.createElement("canvas");
     out.width = src.width + padX * 2;
@@ -413,15 +420,41 @@
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, out.width, out.height);
 
-    const dpr = window.devicePixelRatio || 1;
     ctx.save();
     ctx.scale(dpr, dpr);
+    const leftX = padX / dpr;
     ctx.fillStyle = titleColor;
     ctx.font = "600 17px Inter, -apple-system, sans-serif";
-    ctx.fillText(title, padX / dpr, 28);
+    ctx.fillText(title, leftX, 28);
     ctx.fillStyle = subColor;
     ctx.font = "400 13px Inter, -apple-system, sans-serif";
-    ctx.fillText(subtitle, padX / dpr, 48);
+    ctx.fillText(subtitle, leftX, 48);
+
+    if (legendItems.length) {
+      let cx = leftX;
+      let cy = 62;
+      ctx.font = "600 11.5px Inter, -apple-system, sans-serif";
+      for (const item of legendItems) {
+        const text = `${item.label}: ${item.vStr}`;
+        const w = 26 + ctx.measureText(text).width;
+        ctx.fillStyle = chipBg;
+        ctx.strokeStyle = chipBorder;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, w, 24, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = item.color;
+        ctx.beginPath();
+        ctx.roundRect(cx + 8, cy + 7.5, 9, 9, 2);
+        ctx.fill();
+
+        ctx.fillStyle = titleColor;
+        ctx.fillText(text, cx + 22, cy + 16);
+        cx += w + 8;
+      }
+    }
     ctx.restore();
 
     ctx.drawImage(src, padX, headerH);
@@ -694,6 +727,39 @@
     return { labels, datasets };
   }
 
+  function getMainChartLegendItems(datasets) {
+    return datasets
+      .map((ds) => {
+        const vals = ds.data.filter((v) => v !== null && v !== undefined);
+        const lastVal = vals.length ? vals[vals.length - 1] : null;
+        let vStr = "—";
+        if (lastVal !== null) {
+          vStr =
+            state.metric === "brl"
+              ? formatBRL(lastVal)
+              : `${lastVal >= 0 ? "+" : ""}${formatPct(lastVal)}`;
+        }
+        return { label: ds.label, color: ds.borderColor, lastVal, vStr };
+      })
+      .sort((a, b) => (b.lastVal ?? -Infinity) - (a.lastVal ?? -Infinity));
+  }
+
+  function renderMainChartLegend(datasets) {
+    if (!mainChartLegendEl) return;
+    const items = getMainChartLegendItems(datasets);
+    mainChartLegendEl.innerHTML = items
+      .map(
+        (it) => `
+        <span class="legend-chip">
+          <span class="legend-swatch" style="background:${it.color}"></span>
+          <span>${it.label}:</span>
+          <strong>${it.vStr}</strong>
+        </span>
+      `
+      )
+      .join("");
+  }
+
   function renderChart() {
     const styles = getComputedStyle(document.documentElement);
     const textColor = styles.getPropertyValue("--text-muted").trim();
@@ -711,102 +777,16 @@
     )} (${state.endIdx - state.startIdx + 1} meses)`;
 
     const { labels, datasets } = buildChartData();
+    renderMainChartLegend(datasets);
     const ctx = document.getElementById("mainChart").getContext("2d");
 
     if (state.chart) {
       state.chart.destroy();
     }
 
-    const topLeftLegendPlugin = {
-      id: "topLeftLegend",
-      afterDraw(chart) {
-        const { ctx, chartArea } = chart;
-        if (!chartArea) return;
-
-        const items = chart.data.datasets
-          .map((ds) => {
-            const vals = ds.data.filter((v) => v !== null && v !== undefined);
-            const lastVal = vals.length ? vals[vals.length - 1] : null;
-            return { label: ds.label, color: ds.borderColor, lastVal };
-          })
-          .sort((a, b) => (b.lastVal ?? -Infinity) - (a.lastVal ?? -Infinity));
-
-        if (!items.length) return;
-
-        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-        const boxBg = isDark ? "rgba(17, 25, 39, 0.92)" : "rgba(255, 255, 255, 0.94)";
-        const boxBorder = isDark ? "#232f45" : "#e3e8ee";
-        const textMain = isDark ? "#f1f5f9" : "#0a2540";
-        const textSub = isDark ? "#8b9bb4" : "#697386";
-
-        ctx.save();
-        ctx.font = "600 11.5px Inter, -apple-system, sans-serif";
-        const lineH = 20;
-        const padX = 12;
-        const padY = 10;
-        const headerH = 18;
-
-        const formatted = items.map((it) => {
-          let vStr = "—";
-          if (it.lastVal !== null) {
-            vStr =
-              state.metric === "brl"
-                ? formatBRL(it.lastVal)
-                : `${it.lastVal >= 0 ? "+" : ""}${formatPct(it.lastVal)}`;
-          }
-          return { ...it, vStr, text: `${it.label}: ${vStr}` };
-        });
-
-        let maxW = ctx.measureText("Fechamento do período").width;
-        for (const f of formatted) {
-          const w = 16 + ctx.measureText(f.text).width;
-          if (w > maxW) maxW = w;
-        }
-
-        const boxW = maxW + padX * 2;
-        const boxH = padY * 2 + headerH + formatted.length * lineH - 4;
-        const x = chartArea.left + 14;
-        const y = chartArea.top + 12;
-
-        // Rounded card
-        ctx.fillStyle = boxBg;
-        ctx.strokeStyle = boxBorder;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(x, y, boxW, boxH, 8);
-        ctx.fill();
-        ctx.stroke();
-
-        // Header
-        ctx.fillStyle = textSub;
-        ctx.font = "600 10.5px Inter, -apple-system, sans-serif";
-        ctx.fillText(
-          `${formatMonthLabel(DATA[state.endIdx].m)} • Acumulado`,
-          x + padX,
-          y + padY + 9
-        );
-
-        // Rows
-        formatted.forEach((f, idx) => {
-          const ry = y + padY + headerH + idx * lineH;
-          ctx.fillStyle = f.color;
-          ctx.beginPath();
-          ctx.roundRect(x + padX, ry + 2, 10, 10, 2);
-          ctx.fill();
-
-          ctx.fillStyle = textMain;
-          ctx.font = "600 11.5px Inter, -apple-system, sans-serif";
-          ctx.fillText(f.text, x + padX + 16, ry + 11);
-        });
-
-        ctx.restore();
-      },
-    };
-
     state.chart = new Chart(ctx, {
       type: "line",
       data: { labels, datasets },
-      plugins: [topLeftLegendPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
