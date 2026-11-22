@@ -13,11 +13,11 @@
   ];
 
   const DEFAULT_CUSTOM_RATES = [
-    { id: "r1", kind: "ipca", rate: 7.0, color: "#635bff", visible: true },
-    { id: "r2", kind: "pre", rate: 15.0, color: "#d97706", visible: true },
+    { id: "r1", kind: "ipca", rate: 6.0, color: "#635bff", visible: true },
+    { id: "r2", kind: "pre", rate: 10.0, color: "#d97706", visible: true },
   ];
 
-  const STORAGE_KEY = "cdi_ipca_dynamic_rates_v2";
+  const STORAGE_KEY = "cdi_ipca_dynamic_rates_v3";
 
   function loadCustomRates() {
     try {
