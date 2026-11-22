@@ -313,10 +313,7 @@
 
     dateTriggerEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isOpen = datePopoverEl.classList.contains("open");
-      if (isOpen) {
-        closeDatePopover();
-      } else {
+      if (!datePopoverEl.classList.contains("open")) {
         syncPopoverYearsToSelection();
         renderDatePopover();
         datePopoverEl.classList.add("open");
@@ -340,16 +337,6 @@
     });
 
     dpDoneBtn.addEventListener("click", () => closeDatePopover());
-
-    document.addEventListener("click", (e) => {
-      if (!datePickerEl.contains(e.target)) {
-        closeDatePopover();
-      }
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeDatePopover();
-    });
 
     const metricSelectEl = document.getElementById("metricSelect");
 
