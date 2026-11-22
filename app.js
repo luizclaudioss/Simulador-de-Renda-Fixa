@@ -136,6 +136,19 @@
     });
   }
 
+  function computeTrailing12mIpca(rows) {
+    if (!rows || rows.length < 12) return 4.63;
+    const last12 = rows.slice(-12);
+    let f = 1.0;
+    for (const r of last12) f *= 1 + r.ipca / 100;
+    return Number(((f - 1) * 100).toFixed(2));
+  }
+
+  window.LIVE_RATES = {
+    cdi: 13.65,
+    ipca12m: computeTrailing12mIpca(DATA),
+  };
+
   let fullIndex = {};
   function rebuildFullIndex() {
     fullIndex = {};
@@ -913,11 +926,25 @@
     try {
       const urlIpca = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/20?formato=json";
       const urlCdi = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados/ultimos/20?formato=json";
+      const urlCdiLive = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json";
 
-      const [resIpca, resCdi] = await Promise.all([
+      const [resIpca, resCdi, resCdiLive] = await Promise.all([
         fetch(urlIpca, { signal: controller.signal }),
         fetch(urlCdi, { signal: controller.signal }),
+        fetch(urlCdiLive, { signal: controller.signal }).catch(() => null),
       ]);
+
+      if (resCdiLive && resCdiLive.ok) {
+        try {
+          const cdiLiveJson = await resCdiLive.json();
+          if (Array.isArray(cdiLiveJson) && cdiLiveJson.length) {
+            const liveVal = parseFloat(cdiLiveJson[0].valor);
+            if (Number.isFinite(liveVal) && liveVal > 0) {
+              window.LIVE_RATES.cdi = liveVal;
+            }
+          }
+        } catch (_) {}
+      }
 
       if (!resIpca.ok || !resCdi.ok) {
         throw new Error(`HTTP ${resIpca.status}/${resCdi.status}`);
@@ -949,6 +976,8 @@
       }
 
       DATA = Array.from(existingMap.values()).sort((a, b) => a.m.localeCompare(b.m));
+      window.LIVE_RATES.ipca12m = computeTrailing12mIpca(DATA);
+      window.dispatchEvent(new CustomEvent("live-rates-updated", { detail: window.LIVE_RATES }));
 
       rebuildFullIndex();
       populateDateSelectors(addedCount > 0);

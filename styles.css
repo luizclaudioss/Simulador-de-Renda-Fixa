@@ -950,6 +950,35 @@ td.best-cell {
 }
 
 /* Equivalence Calculator */
+.comp-subnav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.comp-live-rates {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 10px;
+}
+
+.comp-view {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comp-view.active {
+  display: flex;
+}
+
 .eq-input-row {
   display: flex;
   flex-wrap: wrap;
@@ -1039,14 +1068,34 @@ td.best-cell {
 
 .offer-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(130px, 1fr) 110px minmax(140px, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(130px, 1fr) 110px auto auto;
+  gap: 12px;
   align-items: center;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-left: 3px solid var(--offer-color, var(--accent));
   border-radius: 8px;
   padding: 10px 12px;
+}
+
+.offer-exempt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  padding: 0 4px;
+}
+
+.offer-exempt-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .offer-row input,

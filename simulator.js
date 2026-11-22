@@ -1,11 +1,13 @@
 (() => {
+  const liveInit = window.LIVE_RATES || { cdi: 13.65, ipca12m: 4.63 };
+
   const DEFAULTS = {
     mode: "invest", // invest | goal
     bondType: "ipca", // ipca | pre | selic
     bondRate: 7.0,
     custody: 0.2,
-    expIpca: 4.5,
-    expSelic: 14.25,
+    expIpca: liveInit.ipca12m,
+    expSelic: liveInit.cdi,
     cdbPct: 100,
     lciPct: 90,
     fundPct: 98,
@@ -442,6 +444,26 @@
   function initSimulator() {
     const today = new Date();
     startDateEl.value = toInputDate(today);
+    expIpcaEl.value = simState.expIpca.toFixed(2);
+    expSelicEl.value = simState.expSelic.toFixed(2);
+
+    let userEditedExpIpca = false;
+    let userEditedExpSelic = false;
+    expIpcaEl.addEventListener("input", () => { userEditedExpIpca = true; });
+    expSelicEl.addEventListener("input", () => { userEditedExpSelic = true; });
+
+    window.addEventListener("live-rates-updated", (e) => {
+      if (!e.detail) return;
+      if (!userEditedExpIpca && Number.isFinite(e.detail.ipca12m)) {
+        simState.expIpca = e.detail.ipca12m;
+        expIpcaEl.value = simState.expIpca.toFixed(2);
+      }
+      if (!userEditedExpSelic && Number.isFinite(e.detail.cdi)) {
+        simState.expSelic = e.detail.cdi;
+        expSelicEl.value = simState.expSelic.toFixed(2);
+      }
+      renderSimulator();
+    });
 
     document.querySelectorAll("#simModeSelector .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {

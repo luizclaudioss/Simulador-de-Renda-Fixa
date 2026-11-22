@@ -1,9 +1,11 @@
 (() => {
   const COLORS = ["#38bdf8", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#ef4444", "#14b8a6"];
 
+  const liveInit = window.LIVE_RATES || { cdi: 13.65, ipca12m: 4.63 };
+
   const compState = {
-    cdi: 14.25,
-    ipca: 4.5,
+    cdi: liveInit.cdi,
+    ipca: liveInit.ipca12m,
     termVal: 24,
     termUnit: "months", // months | days
     amount: 10000,
@@ -14,7 +16,7 @@
       { id: 1, name: "CDB Pós-fixado", type: "cdi_pct", rate: 115, tax: "ir", color: COLORS[0] },
       { id: 2, name: "LCI / LCA Isenta", type: "cdi_pct", rate: 94, tax: "exempt", color: COLORS[1] },
       { id: 3, name: "CDB Prefixado", type: "pre", rate: 14.5, tax: "ir", color: COLORS[2] },
-      { id: 4, name: "IPCA + 7,0%", type: "ipca_plus", rate: 7.0, tax: "ir", color: COLORS[3] },
+      { id: 4, name: "Tesouro IPCA+", type: "ipca_plus", rate: 7.0, tax: "ir", color: COLORS[3] },
     ],
     nextId: 5,
     chart: null,
@@ -130,6 +132,11 @@
   const eqTaxEl = document.getElementById("eqTax");
   const eqTermValEl = document.getElementById("eqTermVal");
   const eqTermUnitEl = document.getElementById("eqTermUnit");
+  const compTermValEl = document.getElementById("compTermVal");
+  const compTermUnitEl = document.getElementById("compTermUnit");
+  const compIpcaProjEl = document.getElementById("compIpcaProj");
+  const compCdiProjEl = document.getElementById("compCdiProj");
+  const compLiveRatesEl = document.getElementById("compLiveRates");
   const eqGridEl = document.getElementById("eqGrid");
   const eqSubtitleEl = document.getElementById("eqSubtitle");
   const offersListEl = document.getElementById("offersList");
@@ -194,10 +201,10 @@
           <option value="ipca_plus" ${offer.type === "ipca_plus" ? "selected" : ""}>IPCA + (% a.a.)</option>
         </select>
         <input type="number" class="offer-rate" step="0.1" value="${offer.rate}" aria-label="Taxa" />
-        <select class="offer-tax" aria-label="Tributação">
-          <option value="ir" ${offer.tax === "ir" ? "selected" : ""}>Com IR</option>
-          <option value="exempt" ${offer.tax === "exempt" ? "selected" : ""}>Isento (LCI/LCA)</option>
-        </select>
+        <label class="offer-exempt-check">
+          <input type="checkbox" class="offer-tax-check" ${offer.tax === "exempt" ? "checked" : ""} />
+          <span>Isento de IR</span>
+        </label>
         <button type="button" class="remove-offer-btn" title="Remover">✕</button>
       `;
 
@@ -215,8 +222,8 @@
         offer.rate = v;
         renderComparisonOutputs();
       });
-      row.querySelector(".offer-tax").addEventListener("change", (e) => {
-        offer.tax = e.target.value;
+      row.querySelector(".offer-tax-check").addEventListener("change", (e) => {
+        offer.tax = e.target.checked ? "exempt" : "ir";
         renderComparisonOutputs();
       });
       row.querySelector(".remove-offer-btn").addEventListener("click", () => {
@@ -253,8 +260,6 @@
             <td>${formatTypeLabel(item.type, item.rate)}</td>
             <td>${item.ir === 0 ? "Isento" : formatPct(item.ir * 100, 1)}</td>
             <td>${formatPct(item.annualNetPct)}</td>
-            <td>${formatPct(item.netPeriodPct)}</td>
-            <td>${item.realAnnualNetPct >= 0 ? "+" : ""}${formatPct(item.realAnnualNetPct)}</td>
             <td>${formatPct(item.equivCdiTaxed, 1)}</td>
             <td class="${isWinner ? "best-cell" : ""}">${formatBRL(item.finalNet)}${diffText}</td>
           </tr>
@@ -293,8 +298,11 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: "rgba(15, 23, 42, 0.94)",
+            backgroundColor: "#0a2540",
+            titleColor: "#ffffff",
+            bodyColor: "#e2e8f0",
             padding: 10,
+            cornerRadius: 8,
             callbacks: {
               label: (ctx) => {
                 const item = evaluated[ctx.dataIndex];
@@ -323,7 +331,14 @@
     });
   }
 
+  function updateLiveRatesBadge() {
+    if (compLiveRatesEl) {
+      compLiveRatesEl.textContent = `CDI ${formatPct(compState.cdi)} • IPCA ${formatPct(compState.ipca)}`;
+    }
+  }
+
   function renderAllComparator() {
+    updateLiveRatesBadge();
     renderEquivalence();
     renderComparisonOutputs();
   }
@@ -419,29 +434,54 @@
       renderEquivalence();
     });
 
-    if (eqTermValEl) {
-      eqTermValEl.addEventListener("input", () => {
-        const v = parseInt(eqTermValEl.value, 10);
-        if (!Number.isFinite(v) || v < 1) return;
-        compState.termVal = v;
-        renderAllComparator();
-      });
-    }
-
-    if (eqTermUnitEl) {
-      eqTermUnitEl.addEventListener("change", () => {
-        const prevUnit = compState.termUnit;
-        compState.termUnit = eqTermUnitEl.value;
-        if (prevUnit !== compState.termUnit) {
-          compState.termVal =
-            compState.termUnit === "days"
-              ? Math.round(compState.termVal * 30)
-              : Math.max(1, Math.round(compState.termVal / 30));
-          if (eqTermValEl) eqTermValEl.value = compState.termVal;
+    document.querySelectorAll("#compModeSelector .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#compModeSelector .seg-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const mode = btn.dataset.compmode;
+        document.getElementById("compViewEq").classList.toggle("active", mode === "eq");
+        document.getElementById("compViewCompare").classList.toggle("active", mode === "compare");
+        if (mode === "compare") {
+          renderComparisonOutputs();
         }
-        renderAllComparator();
       });
-    }
+    });
+
+    const syncTermInputs = () => {
+      if (eqTermValEl) eqTermValEl.value = compState.termVal;
+      if (eqTermUnitEl) eqTermUnitEl.value = compState.termUnit;
+      if (compTermValEl) compTermValEl.value = compState.termVal;
+      if (compTermUnitEl) compTermUnitEl.value = compState.termUnit;
+    };
+
+    const bindTermControls = (valEl, unitEl) => {
+      if (valEl) {
+        valEl.addEventListener("input", () => {
+          const v = parseInt(valEl.value, 10);
+          if (!Number.isFinite(v) || v < 1) return;
+          compState.termVal = v;
+          syncTermInputs();
+          renderAllComparator();
+        });
+      }
+      if (unitEl) {
+        unitEl.addEventListener("change", () => {
+          const prevUnit = compState.termUnit;
+          compState.termUnit = unitEl.value;
+          if (prevUnit !== compState.termUnit) {
+            compState.termVal =
+              compState.termUnit === "days"
+                ? Math.round(compState.termVal * 30)
+                : Math.max(1, Math.round(compState.termVal / 30));
+          }
+          syncTermInputs();
+          renderAllComparator();
+        });
+      }
+    };
+
+    bindTermControls(eqTermValEl, eqTermUnitEl);
+    bindTermControls(compTermValEl, compTermUnitEl);
 
     addOfferBtn.addEventListener("click", () => {
       const color = COLORS[(compState.nextId - 1) % COLORS.length];
@@ -455,6 +495,44 @@
       });
       renderOffersEditor();
       renderComparisonOutputs();
+    });
+
+    let userEditedCompIpca = false;
+    let userEditedCompCdi = false;
+
+    if (compIpcaProjEl) {
+      compIpcaProjEl.value = compState.ipca.toFixed(2);
+      compIpcaProjEl.addEventListener("input", () => {
+        const v = parseFloat(compIpcaProjEl.value);
+        if (!Number.isFinite(v) || v <= -100) return;
+        userEditedCompIpca = true;
+        compState.ipca = v;
+        renderAllComparator();
+      });
+    }
+
+    if (compCdiProjEl) {
+      compCdiProjEl.value = compState.cdi.toFixed(2);
+      compCdiProjEl.addEventListener("input", () => {
+        const v = parseFloat(compCdiProjEl.value);
+        if (!Number.isFinite(v) || v < 0) return;
+        userEditedCompCdi = true;
+        compState.cdi = v;
+        renderAllComparator();
+      });
+    }
+
+    window.addEventListener("live-rates-updated", (e) => {
+      if (!e.detail) return;
+      if (!userEditedCompCdi && Number.isFinite(e.detail.cdi)) {
+        compState.cdi = e.detail.cdi;
+        if (compCdiProjEl) compCdiProjEl.value = compState.cdi.toFixed(2);
+      }
+      if (!userEditedCompIpca && Number.isFinite(e.detail.ipca12m)) {
+        compState.ipca = e.detail.ipca12m;
+        if (compIpcaProjEl) compIpcaProjEl.value = compState.ipca.toFixed(2);
+      }
+      renderAllComparator();
     });
 
     // Re-render comparator chart when theme changes
