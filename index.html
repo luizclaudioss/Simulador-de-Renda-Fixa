@@ -194,50 +194,6 @@
     </main>
 
     <main id="tab-comparator" class="tab-panel">
-      <section class="controls-card">
-        <div class="control-group">
-          <label class="control-label" for="compCdi">CDI Projetado (% a.a.)</label>
-          <label class="rate-field" style="--rate-color: #38bdf8">
-            <span>CDI</span>
-            <input type="number" id="compCdi" step="0.25" min="0" max="100" value="14.25" />
-            <span class="unit">%</span>
-          </label>
-        </div>
-
-        <div class="control-group">
-          <label class="control-label" for="compIpca">IPCA Projetado (% a.a.)</label>
-          <label class="rate-field" style="--rate-color: #94a3b8">
-            <span>IPCA</span>
-            <input type="number" id="compIpca" step="0.1" min="-10" max="100" value="4.5" />
-            <span class="unit">%</span>
-          </label>
-        </div>
-
-        <div class="control-group">
-          <label class="control-label" for="compMonths">Prazo (meses)</label>
-          <div class="period-row">
-            <label class="rate-field" style="--rate-color: #10b981">
-              <input type="number" id="compMonths" step="1" min="1" max="360" value="24" />
-              <span class="unit">m</span>
-            </label>
-            <div class="segmented" id="compTermPresets">
-              <button type="button" class="seg-btn" data-m="6">6m (22,5%)</button>
-              <button type="button" class="seg-btn" data-m="12">12m (20%)</button>
-              <button type="button" class="seg-btn active" data-m="24">24m (15%)</button>
-              <button type="button" class="seg-btn" data-m="36">36m+ (15%)</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label class="control-label" for="compAmount">Valor a Investir (R$)</label>
-          <label class="amount-field">
-            <span>R$</span>
-            <input type="number" id="compAmount" step="100" min="1" value="10000" />
-          </label>
-        </div>
-      </section>
-
       <section class="chart-card">
         <div class="chart-header">
           <div>

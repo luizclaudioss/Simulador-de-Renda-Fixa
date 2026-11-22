@@ -335,46 +335,54 @@
       mobileTabSelect.addEventListener("change", () => switchTab(mobileTabSelect.value));
     }
 
-    cdiEl.addEventListener("input", () => {
-      const v = parseFloat(cdiEl.value);
-      if (!Number.isFinite(v) || v < 0) return;
-      compState.cdi = v;
-      renderAllComparator();
-    });
-
-    ipcaEl.addEventListener("input", () => {
-      const v = parseFloat(ipcaEl.value);
-      if (!Number.isFinite(v) || v <= -100) return;
-      compState.ipca = v;
-      renderAllComparator();
-    });
-
-    monthsEl.addEventListener("input", () => {
-      const v = parseInt(monthsEl.value, 10);
-      if (!Number.isFinite(v) || v < 1) return;
-      compState.months = v;
-      document.querySelectorAll("#compTermPresets .seg-btn").forEach((b) => {
-        b.classList.toggle("active", parseInt(b.dataset.m, 10) === v);
+    if (cdiEl) {
+      cdiEl.addEventListener("input", () => {
+        const v = parseFloat(cdiEl.value);
+        if (!Number.isFinite(v) || v < 0) return;
+        compState.cdi = v;
+        renderAllComparator();
       });
-      renderAllComparator();
-    });
+    }
+
+    if (ipcaEl) {
+      ipcaEl.addEventListener("input", () => {
+        const v = parseFloat(ipcaEl.value);
+        if (!Number.isFinite(v) || v <= -100) return;
+        compState.ipca = v;
+        renderAllComparator();
+      });
+    }
+
+    if (monthsEl) {
+      monthsEl.addEventListener("input", () => {
+        const v = parseInt(monthsEl.value, 10);
+        if (!Number.isFinite(v) || v < 1) return;
+        compState.months = v;
+        document.querySelectorAll("#compTermPresets .seg-btn").forEach((b) => {
+          b.classList.toggle("active", parseInt(b.dataset.m, 10) === v);
+        });
+        renderAllComparator();
+      });
+    }
 
     document.querySelectorAll("#compTermPresets .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#compTermPresets .seg-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         compState.months = parseInt(btn.dataset.m, 10);
-        monthsEl.value = compState.months;
+        if (monthsEl) monthsEl.value = compState.months;
         renderAllComparator();
       });
     });
 
-    amountEl.addEventListener("input", () => {
-      const v = parseFloat(amountEl.value);
-      if (!Number.isFinite(v) || v <= 0) return;
-      compState.amount = v;
-      renderAllComparator();
-    });
+    if (amountEl) {
+      amountEl.addEventListener("input", () => {
+        const v = parseFloat(amountEl.value);
+        if (!Number.isFinite(v) || v <= 0) return;
+        compState.amount = v;
+        renderAllComparator();
+      });
+    }
 
     eqTypeEl.addEventListener("change", () => {
       compState.eqType = eqTypeEl.value;
