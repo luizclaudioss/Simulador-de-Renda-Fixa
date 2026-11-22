@@ -45,6 +45,12 @@
   padding: 0;
 }
 
+html,
+body {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
@@ -301,6 +307,32 @@ h1 {
   height: 2px;
   background: var(--accent);
   border-radius: 2px;
+}
+
+.mobile-tab-bar,
+.mobile-metric-select {
+  display: none;
+}
+
+.mobile-tab-bar select,
+.mobile-metric-select {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+
+.mobile-tab-bar select:focus,
+.mobile-metric-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .tab-panel {
@@ -575,6 +607,21 @@ h1 {
 
 .dp-done-btn:hover {
   background: var(--accent-hover);
+}
+
+@media (max-width: 640px) {
+  .main-tabs,
+  #metricSelector {
+    display: none;
+  }
+  .mobile-tab-bar,
+  .mobile-metric-select {
+    display: block;
+  }
+  input,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1122,6 +1169,21 @@ td.best-cell {
   }
 }
 
+@media (max-width: 640px) {
+  .main-tabs,
+  #metricSelector {
+    display: none;
+  }
+  .mobile-tab-bar,
+  .mobile-metric-select {
+    display: block;
+  }
+  input,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media (max-width: 560px) {
   .container {
     padding: 20px 14px 40px;
@@ -1165,7 +1227,13 @@ td.best-cell {
     margin: 10mm;
   }
 
-  body {
+  html,
+body {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
     background: #ffffff !important;
     color: #0a2540 !important;
   }

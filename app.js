@@ -351,14 +351,28 @@
       if (e.key === "Escape") closeDatePopover();
     });
 
+    const metricSelectEl = document.getElementById("metricSelect");
+
     document.querySelectorAll("#metricSelector .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#metricSelector .seg-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         state.metric = btn.dataset.metric;
+        if (metricSelectEl) metricSelectEl.value = state.metric;
         render();
       });
     });
+
+    if (metricSelectEl) {
+      metricSelectEl.value = state.metric;
+      metricSelectEl.addEventListener("change", () => {
+        state.metric = metricSelectEl.value;
+        document.querySelectorAll("#metricSelector .seg-btn").forEach((b) => {
+          b.classList.toggle("active", b.dataset.metric === state.metric);
+        });
+        render();
+      });
+    }
 
     document.querySelectorAll("#periodSelector .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {

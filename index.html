@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CDI vs IPCA+ vs Pré — Série Histórica (desde 2000)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,6 +39,13 @@
         Simulador com Data de Resgate
       </button>
     </nav>
+    <div class="mobile-tab-bar">
+      <select id="mobileTabSelect" aria-label="Selecionar seção">
+        <option value="history">Série Histórica (desde 2000)</option>
+        <option value="comparator">Comparador &amp; Equivalência de Taxas</option>
+        <option value="simulator">Simulador com Data de Resgate</option>
+      </select>
+    </div>
 
     <main id="tab-history" class="tab-panel active">
     <section class="controls-card">
@@ -50,6 +57,12 @@
           <button type="button" class="seg-btn" data-metric="real">Ganho Real (acima IPCA)</button>
           <button type="button" class="seg-btn" data-metric="rolling12">Móvel 12M (% a.a.)</button>
         </div>
+        <select id="metricSelect" class="mobile-metric-select" aria-label="Visualização">
+          <option value="pct">Acumulado (%)</option>
+          <option value="brl">Patrimônio (R$)</option>
+          <option value="real">Ganho Real (acima IPCA)</option>
+          <option value="rolling12">Móvel 12M (% a.a.)</option>
+        </select>
       </div>
 
       <div class="control-group">

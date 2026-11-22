@@ -521,6 +521,9 @@
         if (btn.dataset.tab === "simulator") renderSimulator();
       });
     });
+    window.addEventListener("tabchanged", (e) => {
+      if (e.detail === "simulator") renderSimulator();
+    });
 
     document.getElementById("themeToggle").addEventListener("click", () => {
       setTimeout(() => renderSimulator(), 10);

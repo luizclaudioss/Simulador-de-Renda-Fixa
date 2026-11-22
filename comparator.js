@@ -308,24 +308,32 @@
     renderComparisonOutputs();
   }
 
+  function switchTab(tabName) {
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      const isActive = b.dataset.tab === tabName;
+      b.classList.toggle("active", isActive);
+      b.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+    document.querySelectorAll(".tab-panel").forEach((p) => {
+      p.classList.toggle("active", p.id === `tab-${tabName}`);
+    });
+    const mobileTabSelect = document.getElementById("mobileTabSelect");
+    if (mobileTabSelect) mobileTabSelect.value = tabName;
+    if (tabName === "comparator") {
+      renderComparisonOutputs();
+    }
+    window.dispatchEvent(new CustomEvent("tabchanged", { detail: tabName }));
+  }
+
   function initComparator() {
     // Tabs
     document.querySelectorAll(".tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach((b) => {
-          b.classList.remove("active");
-          b.setAttribute("aria-selected", "false");
-        });
-        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-        btn.classList.add("active");
-        btn.setAttribute("aria-selected", "true");
-        const target = document.getElementById(`tab-${btn.dataset.tab}`);
-        if (target) target.classList.add("active");
-        if (btn.dataset.tab === "comparator") {
-          renderComparisonOutputs();
-        }
-      });
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
+    const mobileTabSelect = document.getElementById("mobileTabSelect");
+    if (mobileTabSelect) {
+      mobileTabSelect.addEventListener("change", () => switchTab(mobileTabSelect.value));
+    }
 
     cdiEl.addEventListener("input", () => {
       const v = parseFloat(cdiEl.value);
