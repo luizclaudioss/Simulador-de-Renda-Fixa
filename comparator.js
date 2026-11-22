@@ -4,7 +4,8 @@
   const compState = {
     cdi: 14.25,
     ipca: 4.5,
-    months: 24,
+    termVal: 24,
+    termUnit: "months", // months | days
     amount: 10000,
     eqType: "cdi_pct",
     eqRate: 100,
@@ -19,11 +20,28 @@
     chart: null,
   };
 
-  function getIrRate(months) {
-    if (months <= 6) return 0.225;
-    if (months <= 12) return 0.20;
-    if (months < 24) return 0.175;
+  function getIrRate() {
+    if (compState.termUnit === "days") {
+      if (compState.termVal <= 180) return 0.225;
+      if (compState.termVal <= 360) return 0.20;
+      if (compState.termVal <= 720) return 0.175;
+      return 0.15;
+    }
+    if (compState.termVal <= 6) return 0.225;
+    if (compState.termVal <= 12) return 0.20;
+    if (compState.termVal < 24) return 0.175;
     return 0.15;
+  }
+
+  function getTermYears() {
+    return compState.termUnit === "days" ? compState.termVal / 365 : compState.termVal / 12;
+  }
+
+  function formatTermLabel() {
+    if (compState.termUnit === "days") {
+      return `${compState.termVal} ${compState.termVal === 1 ? "dia" : "dias"}`;
+    }
+    return `${compState.termVal} ${compState.termVal === 1 ? "mês" : "meses"}`;
   }
 
   function formatPct(val, decimals = 2) {
@@ -53,8 +71,8 @@
   }
 
   function evaluateOption(type, rate, tax) {
-    const t = compState.months / 12;
-    const ir = tax === "exempt" ? 0 : getIrRate(compState.months);
+    const t = getTermYears();
+    const ir = tax === "exempt" ? 0 : getIrRate();
     const annualGross = calcAnnualGross(type, rate, compState.cdi, compState.ipca);
     const grossFactor = Math.pow(1 + annualGross, t);
     const netFactor = 1 + (grossFactor - 1) * (1 - ir);
@@ -63,7 +81,7 @@
     const finalNet = compState.amount * netFactor;
 
     // Equivalent % of CDI (taxed with IR)
-    const irStd = getIrRate(compState.months);
+    const irStd = getIrRate();
     const reqGrossFactor = 1 + (netFactor - 1) / (1 - irStd);
     const reqAnnualGross = Math.pow(reqGrossFactor, 1 / t) - 1;
     const equivCdiTaxed = compState.cdi > 0 ? (reqAnnualGross / (compState.cdi / 100)) * 100 : 0;
@@ -82,7 +100,7 @@
   }
 
   function grossRatesForNetFactor(netFactor, irRate) {
-    const t = compState.months / 12;
+    const t = getTermYears();
     const reqGrossFactor = 1 + (netFactor - 1) / (1 - irRate);
     const reqAnnualGross = Math.pow(reqGrossFactor, 1 / t) - 1;
     const cdi = compState.cdi / 100;
@@ -110,6 +128,8 @@
   const eqTypeEl = document.getElementById("eqType");
   const eqRateEl = document.getElementById("eqRate");
   const eqTaxEl = document.getElementById("eqTax");
+  const eqTermValEl = document.getElementById("eqTermVal");
+  const eqTermUnitEl = document.getElementById("eqTermUnit");
   const eqGridEl = document.getElementById("eqGrid");
   const eqSubtitleEl = document.getElementById("eqSubtitle");
   const offersListEl = document.getElementById("offersList");
@@ -118,11 +138,11 @@
 
   function renderEquivalence() {
     const res = evaluateOption(compState.eqType, compState.eqRate, compState.eqTax);
-    const irStd = getIrRate(compState.months);
+    const irStd = getIrRate();
     const taxed = grossRatesForNetFactor(res.netFactor, irStd);
     const exempt = grossRatesForNetFactor(res.netFactor, 0);
 
-    eqSubtitleEl.textContent = `Prazo de ${compState.months} meses (IR regressivo de ${(irStd * 100).toFixed(1).replace(".", ",")}% sobre tributados) • CDI ${formatPct(compState.cdi)} | IPCA ${formatPct(compState.ipca)}`;
+    eqSubtitleEl.textContent = `Prazo de ${formatTermLabel()} (IR regressivo de ${(irStd * 100).toFixed(1).replace(".", ",")}% sobre tributados) • CDI ${formatPct(compState.cdi)} | IPCA ${formatPct(compState.ipca)}`;
 
     const cards = [
       {
@@ -243,7 +263,7 @@
       .join("");
 
     // Chart
-    compChartSubEl.textContent = `Aplicação de ${formatBRL(compState.amount)} por ${compState.months} meses • Rentabilidade líquida acumulada no período (%)`;
+    compChartSubEl.textContent = `Aplicação de ${formatBRL(compState.amount)} por ${formatTermLabel()} • Rentabilidade líquida acumulada no período (%)`;
 
     const styles = getComputedStyle(document.documentElement);
     const textColor = styles.getPropertyValue("--text-muted").trim();
@@ -398,6 +418,30 @@
       compState.eqTax = eqTaxEl.value;
       renderEquivalence();
     });
+
+    if (eqTermValEl) {
+      eqTermValEl.addEventListener("input", () => {
+        const v = parseInt(eqTermValEl.value, 10);
+        if (!Number.isFinite(v) || v < 1) return;
+        compState.termVal = v;
+        renderAllComparator();
+      });
+    }
+
+    if (eqTermUnitEl) {
+      eqTermUnitEl.addEventListener("change", () => {
+        const prevUnit = compState.termUnit;
+        compState.termUnit = eqTermUnitEl.value;
+        if (prevUnit !== compState.termUnit) {
+          compState.termVal =
+            compState.termUnit === "days"
+              ? Math.round(compState.termVal * 30)
+              : Math.max(1, Math.round(compState.termVal / 30));
+          if (eqTermValEl) eqTermValEl.value = compState.termVal;
+        }
+        renderAllComparator();
+      });
+    }
 
     addOfferBtn.addEventListener("click", () => {
       const color = COLORS[(compState.nextId - 1) % COLORS.length];

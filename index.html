@@ -221,6 +221,16 @@
               <option value="exempt">Isento de IR (LCI / LCA / CRI / CRA)</option>
             </select>
           </label>
+          <label class="eq-field">
+            <span>Prazo</span>
+            <div class="eq-term-wrap">
+              <input type="number" id="eqTermVal" step="1" min="1" value="24" />
+              <select id="eqTermUnit" aria-label="Unidade do prazo">
+                <option value="months" selected>Meses</option>
+                <option value="days">Dias</option>
+              </select>
+            </div>
+          </label>
         </div>
         <div class="eq-grid" id="eqGrid"></div>
       </section>

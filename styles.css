@@ -986,6 +986,16 @@ td.best-cell {
   text-align: right;
 }
 
+.eq-term-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.eq-term-wrap input {
+  width: 82px;
+}
+
 .eq-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
